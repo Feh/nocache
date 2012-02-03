@@ -14,8 +14,9 @@ int (*_original_close)(int fd);
 void init(void) __attribute__((constructor));
 int open(const char *pathname, int flags, mode_t mode);
 int close(int fd);
+
 static void store_pageinfo(int fd);
-static void free_pages(int fd);
+static void free_unclaimed_pages(int fd);
 extern int fadv_dontneed(int fd, off_t offset, off_t len);
 
 #define _MAX_FDS 1024
@@ -46,7 +47,7 @@ int open(const char *pathname, int flags, mode_t mode)
 
 int close(int fd)
 {
-    free_pages(fd);
+    free_unclaimed_pages(fd);
     return _original_close(fd);
 }
 
@@ -93,7 +94,7 @@ static void store_pageinfo(int fd)
     munmap(file, st.st_size);
 }
 
-static void free_pages(int fd)
+static void free_unclaimed_pages(int fd)
 {
     int i, j;
 
