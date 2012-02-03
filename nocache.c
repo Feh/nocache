@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <dlfcn.h>
+#include <string.h>
 
 int (*_original_open)(const char *pathname, int flags, mode_t mode);
 int (*_original_close)(int fd);
@@ -105,4 +106,7 @@ static void free_pages(int fd)
     for(j = 0; j < fds[i].nr_pages; j++)
         if(!(((unsigned char *)fds[i].info)[j] & 1))
             fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
+
+    free(fds[i].info);
+    memset(&fds[i], 0, sizeof(fds[i]));
 }
