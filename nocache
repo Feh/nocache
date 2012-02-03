@@ -1,0 +1,3 @@
+#!/bin/sh
+export LD_PRELOAD="./nocache.so"
+exec "$@"
