@@ -18,6 +18,7 @@ int close(int fd);
 static void store_pageinfo(int fd);
 static void free_unclaimed_pages(int fd);
 extern int fadv_dontneed(int fd, off_t offset, off_t len);
+extern void sync_if_writable(int fd);
 
 #define _MAX_FDS 1024
 
@@ -140,6 +141,8 @@ static void free_unclaimed_pages(int fd)
             break;
     if(i == _MAX_FDS)
         return; /* not found */
+
+    sync_if_writable(fd);
 
     for(j = 0; j < fds[i].nr_pages; j++) {
         if(!(fds[i].info[j] & 1)) {
