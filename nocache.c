@@ -23,18 +23,22 @@ extern int fadv_dontneed(int fd, off_t offset, off_t len);
 
 struct fadv_info {
     int fd;
+    off_t size;
     unsigned int nr_pages;
-    void *info;
+    unsigned char *info;
 };
 static struct fadv_info fds[_MAX_FDS];
 static size_t PAGESIZE;
 
 void init(void)
 {
+    int i;
     _original_open = (int (*)(const char *, int, mode_t))
         dlsym(RTLD_NEXT, "open");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
-    PAGESIZE = sysconf(_SC_PAGESIZE);
+    PAGESIZE = getpagesize();
+    for(i = 0; i < _MAX_FDS; i++)
+        fds[i].fd = -1;
 }
 
 int open(const char *pathname, int flags, mode_t mode)
@@ -56,29 +60,41 @@ static void store_pageinfo(int fd)
     int i;
     int pages;
     struct stat st;
-    void *file;
-    unsigned char *pageinfo;
+    void *file = NULL;
+    unsigned char *pageinfo = NULL;
+
+    if(fstat(fd, &st) == -1)
+        return;
+    if(!S_ISREG(st.st_mode))
+        return;
 
     /* check if there's space to store the info */
-    for(i = 0; i < _MAX_FDS && fds[i].fd; i++)
+    for(i = 0; i < _MAX_FDS && fds[i].fd != -1; i++)
         ;
     if(i == _MAX_FDS)
         return; /* no space! */
     fds[i].fd = fd;
 
-    if(fstat(fd, &st) == -1)
+    /* If size is 0, mmap() will fail. We'll keep the fd stored, anyway, to
+     * make sure the newly written pages will be freed (so no cleanup!). */
+    if(st.st_size == 0) {
+        fds[i].size = 0;
+        fds[i].nr_pages = 0;
+        fds[i].info = NULL;
         return;
+    }
 
+    fds[i].size = st.st_size;
     pages = fds[i].nr_pages = (st.st_size + PAGESIZE - 1) / PAGESIZE;
     pageinfo = calloc(sizeof(*pageinfo), pages);
     if(!pageinfo)
-        return;
+        goto cleanup;
 
     file = mmap(NULL, st.st_size, PROT_NONE, MAP_SHARED, fd, 0);
     if(file == MAP_FAILED)
-        return;
+        goto cleanup;
     if(mincore(file, st.st_size, pageinfo) == -1)
-        return;
+        goto cleanup;
 
     fds[i].info = pageinfo;
 
@@ -89,14 +105,35 @@ static void store_pageinfo(int fd)
         fprintf(stderr, "%c", (pageinfo[j] & 1) ? 'Y' : 'N');
     }
     fprintf(stderr, "\n");
+
+    int j;
+    for(j=0; j<pages; j++)
+        if(!(pageinfo[j] & 1))
+            break;
+    if(j == pages)
+        fprintf(stderr, "was fully in cache: %d: %d/%d\n", fd, j, pages);
+    else
+        fprintf(stderr, "was not fully in cache: %d: %d/%d\n", fd, j, pages);
 #endif
 
     munmap(file, st.st_size);
+
+    return;
+
+    cleanup:
+    fds[i].fd = -1;
+    if(pageinfo)
+        free(pageinfo);
+    if(file)
+        munmap(file, st.st_size);
 }
 
 static void free_unclaimed_pages(int fd)
 {
     int i, j;
+
+    if(fd == -1)
+        return;
 
     for(i = 0; i < _MAX_FDS; i++)
         if(fds[i].fd == fd)
@@ -105,9 +142,13 @@ static void free_unclaimed_pages(int fd)
         return; /* not found */
 
     for(j = 0; j < fds[i].nr_pages; j++)
-        if(!(((unsigned char *)fds[i].info)[j] & 1))
+        if(!(fds[i].info[j] & 1))
             fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
 
-    free(fds[i].info);
-    memset(&fds[i], 0, sizeof(fds[i]));
+    /* forget written contents that go beyond previous file size */
+    fadv_dontneed(fd, fds[i].size, 0);
+
+    if(fds[i].info)
+        free(fds[i].info);
+    fds[i].fd = -1;
 }
