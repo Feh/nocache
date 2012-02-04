@@ -6,6 +6,8 @@
 
 int fadv_dontneed(int fd, off_t offset, off_t len)
 {
+        if(posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED) == -1)
+            return -1;
         return posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
 }
 

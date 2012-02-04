@@ -154,15 +154,19 @@ static void free_unclaimed_pages(int fd)
 
     sync_if_writable(fd);
 
-    for(j = 0; j < fds[i].nr_pages; j++) {
-        if(!(fds[i].info[j] & 1)) {
-            fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
-            fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
+    int start;
+    start = j = 0;
+    while(j < fds[i].nr_pages) {
+        if(fds[i].info[j] & 1) {
+            if(start < j)
+                fadv_dontneed(fd, start*PAGESIZE, (j - start) * PAGESIZE);
+            start = j + 1;
         }
+        j++;
     }
 
     /* forget written contents that go beyond previous file size */
-    fadv_dontneed(fd, fds[i].size, 0);
+    fadv_dontneed(fd, start < j ? start*PAGESIZE : fds[i].size, 0);
 
     if(fds[i].info)
         free(fds[i].info);
