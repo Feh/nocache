@@ -141,9 +141,12 @@ static void free_unclaimed_pages(int fd)
     if(i == _MAX_FDS)
         return; /* not found */
 
-    for(j = 0; j < fds[i].nr_pages; j++)
-        if(!(fds[i].info[j] & 1))
+    for(j = 0; j < fds[i].nr_pages; j++) {
+        if(!(fds[i].info[j] & 1)) {
             fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
+            fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
+        }
+    }
 
     /* forget written contents that go beyond previous file size */
     fadv_dontneed(fd, fds[i].size, 0);
