@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <dlfcn.h>
 #include <string.h>
+#include <pthread.h>
 
 int (*_original_open)(const char *pathname, int flags, mode_t mode);
 int (*_original_close)(int fd);
@@ -30,6 +31,7 @@ struct fadv_info {
 };
 static struct fadv_info fds[_MAX_FDS];
 static size_t PAGESIZE;
+static pthread_mutex_t lock;
 
 void init(void)
 {
@@ -37,6 +39,7 @@ void init(void)
     _original_open = (int (*)(const char *, int, mode_t))
         dlsym(RTLD_NEXT, "open");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
+    pthread_mutex_init(&lock, NULL);
     PAGESIZE = getpagesize();
     for(i = 0; i < _MAX_FDS; i++)
         fds[i].fd = -1;
@@ -45,14 +48,19 @@ void init(void)
 int open(const char *pathname, int flags, mode_t mode)
 {
     int fd;
-    if((fd = _original_open(pathname, flags, mode)) != -1)
+    if((fd = _original_open(pathname, flags, mode)) != -1) {
+        pthread_mutex_lock(&lock);
         store_pageinfo(fd);
+        pthread_mutex_unlock(&lock);
+    }
     return fd;
 }
 
 int close(int fd)
 {
+    pthread_mutex_lock(&lock);
     free_unclaimed_pages(fd);
+    pthread_mutex_unlock(&lock);
     return _original_close(fd);
 }
 
@@ -146,7 +154,6 @@ static void free_unclaimed_pages(int fd)
 
     for(j = 0; j < fds[i].nr_pages; j++) {
         if(!(fds[i].info[j] & 1)) {
-            fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
             fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
         }
     }
