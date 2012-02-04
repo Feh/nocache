@@ -19,6 +19,7 @@ int close(int fd);
 static void store_pageinfo(int fd);
 static void free_unclaimed_pages(int fd);
 extern int fadv_dontneed(int fd, off_t offset, off_t len);
+extern int fadv_noreuse(int fd, off_t offset, off_t len);
 extern void sync_if_writable(int fd);
 
 #define _MAX_FDS 1024
@@ -51,6 +52,7 @@ int open(const char *pathname, int flags, mode_t mode)
     if((fd = _original_open(pathname, flags, mode)) != -1) {
         pthread_mutex_lock(&lock);
         store_pageinfo(fd);
+        fadv_noreuse(fd, 0, 0);
         pthread_mutex_unlock(&lock);
     }
     return fd;
@@ -154,6 +156,7 @@ static void free_unclaimed_pages(int fd)
 
     for(j = 0; j < fds[i].nr_pages; j++) {
         if(!(fds[i].info[j] & 1)) {
+            fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
             fadv_dontneed(fd, j*PAGESIZE, PAGESIZE);
         }
     }

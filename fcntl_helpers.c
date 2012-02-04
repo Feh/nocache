@@ -9,6 +9,11 @@ int fadv_dontneed(int fd, off_t offset, off_t len)
         return posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
 }
 
+int fadv_noreuse(int fd, off_t offset, off_t len)
+{
+        return posix_fadvise(fd, offset, len, POSIX_FADV_NOREUSE);
+}
+
 void sync_if_writable(int fd)
 {
     int r;
