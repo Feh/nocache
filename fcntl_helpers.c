@@ -12,8 +12,8 @@ int fadv_dontneed(int fd, off_t offset, off_t len)
 void sync_if_writable(int fd)
 {
     int r;
-    if((r = fcntl(fd, F_GETFL, 0)) == -1)
+    if((r = fcntl(fd, F_GETFL)) == -1)
         return;
-    if(!(r & O_RDONLY))
+    if((r & O_ACCMODE) != O_RDONLY)
         fdatasync(fd);
 }
