@@ -87,12 +87,14 @@ int main(int argc, char *argv[])
         "pagesize=%dK]\n", j, i, 100.0 * j / i,
         1.0 * st.st_size / 1024, PAGESIZE / 1024);
 
-#define PAGES_PER_LINE 16
+#define PAGES_PER_LINE 32
     if(verbose) {
         printf("\ncache map:\n");
         for(i = 0; i <= (pages - 1) / PAGES_PER_LINE; i++) {
-            printf("%6d: |", i);
+            printf("%6d: |", i * PAGES_PER_LINE);
             for(j = 0; j < PAGES_PER_LINE; j++) {
+                if(i * PAGES_PER_LINE + j == pages)
+                    break;
                 printf("%c|",
                     pageinfo[i * PAGES_PER_LINE + j] & 1 ? 'x' : ' ');
             }
