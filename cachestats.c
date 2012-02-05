@@ -83,7 +83,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    printf("pages in cache: %d/%d (%.1f%%)\n", j, i, 100.0 * j / i);
+    printf("pages in cache: %d/%d (%.1f%%)  [filesize=%.1fK, "
+        "pagesize=%dK]\n", j, i, 100.0 * j / i,
+        1.0 * st.st_size / 1024, PAGESIZE / 1024);
 
 #define PAGES_PER_LINE 16
     if(verbose) {
