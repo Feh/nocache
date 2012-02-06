@@ -12,6 +12,7 @@
 int (*_original_open)(const char *pathname, int flags, mode_t mode);
 int (*_original_creat)(const char *pathname, int flags, mode_t mode);
 int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode);
+int (*_original_dup)(int fd);
 int (*_original_close)(int fd);
 
 void init(void) __attribute__((constructor));
@@ -28,6 +29,7 @@ int openat64(int dirfd, const char *pathname, int flags, mode_t mode)
     __attribute__ ((alias ("openat")));
 int __openat_2(int dirfd, const char *pathname, int flags, mode_t mode)
     __attribute__ ((alias ("openat")));
+int dup(int oldfd);
 int close(int fd);
 
 static void store_pageinfo(int fd);
@@ -58,6 +60,7 @@ void init(void)
         dlsym(RTLD_NEXT, "creat");
     _original_openat = (int (*)(int, const char *, int, mode_t))
         dlsym(RTLD_NEXT, "openat");
+    _original_dup = (int (*)(int)) dlsym(RTLD_NEXT, "dup");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
     PAGESIZE = getpagesize();
     for(i = 0; i < _MAX_FDS; i++)
@@ -94,6 +97,16 @@ int openat(int dirfd, const char *pathname, int flags, mode_t mode)
 {
     int fd;
     if((fd = _original_openat(dirfd, pathname, flags, mode)) != -1) {
+        store_pageinfo(fd);
+    }
+    return fd;
+}
+
+int dup(int oldfd)
+{
+    int fd;
+    if((fd = _original_dup(oldfd)) != -1) {
+        fprintf(stderr, "dup()! old=%d, new=%d\n", oldfd, fd);
         store_pageinfo(fd);
     }
     return fd;
