@@ -22,7 +22,7 @@ Just type `make`. Then, prepend `./nocache` to your command:
     ./nocache cp -a ~/ /mnt/backup/home-$(hostname)
 
 You can also put the `nocache.so` file to a location like
-`/usr/local/lib` and do `LD_PRELOAD=nocache.so`.
+`/usr/local/lib` and do `LD_PRELOAD=/usr/local/lib/nocache.so`.
 
 
 Testing
@@ -61,6 +61,22 @@ With `nocache`, the original caching state will be preserved.
     $ ./nocache cp ~/file.mp3 /tmp
     $ ./cachestats ~/file.mp3
     pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
+
+
+Limitations
+-----------
+
+The pre-loaded library tries really hard to catch all system calls
+that open or close a file. This happens by "hijacking" the libc
+functions that wrap the actual system calls. In some cases, this may
+fail, for example because the application does some clever wrapping.
+(That is the reason why `__openat_2` is defined: GNU `tar` uses this
+instead of a regular `openat`.)
+
+However, since the actual `fadvise` calls are performed right before
+the file descriptor is closed, this may not happen if they are left
+open when the application exits, although the destructor tries to do
+that.
 
 
 Acknowledgements

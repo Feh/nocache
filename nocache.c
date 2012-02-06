@@ -15,8 +15,9 @@ int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode)
 int (*_original_dup)(int fd);
 int (*_original_close)(int fd);
 
-void init(void) __attribute__((constructor));
-void init_mutex(void);
+static void init(void) __attribute__((constructor));
+static void destroy(void) __attribute__((destructor));
+static void init_mutex(void);
 
 int open(const char *pathname, int flags, mode_t mode);
 int open64(const char *pathname, int flags, mode_t mode)
@@ -51,7 +52,7 @@ static struct fadv_info fds[_MAX_FDS];
 static size_t PAGESIZE;
 static pthread_mutex_t lock; /* protects access to fds[] */
 
-void init(void)
+static void init(void)
 {
     int i;
     _original_open = (int (*)(const char *, int, mode_t))
@@ -68,11 +69,26 @@ void init(void)
     init_mutex();
 }
 
-void init_mutex(void)
+static void init_mutex(void)
 {
     pthread_mutex_init(&lock, NULL);
     /* make sure to re-initialize mutex if forked */
     pthread_atfork(NULL, NULL, init_mutex);
+}
+
+/* try to advise fds that were not manually closed */
+static void destroy(void)
+{
+    int i;
+    pthread_mutex_lock(&lock);
+    for(i = 0; i < _MAX_FDS; i++) {
+        if(fds[i].fd == -1)
+            continue; /* slot is empty */
+        pthread_mutex_unlock(&lock);
+        free_unclaimed_pages(fds[i].fd);
+        pthread_mutex_lock(&lock);
+    }
+    pthread_mutex_unlock(&lock);
 }
 
 int open(const char *pathname, int flags, mode_t mode)
@@ -106,7 +122,6 @@ int dup(int oldfd)
 {
     int fd;
     if((fd = _original_dup(oldfd)) != -1) {
-        fprintf(stderr, "dup()! old=%d, new=%d\n", oldfd, fd);
         store_pageinfo(fd);
     }
     return fd;
