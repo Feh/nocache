@@ -10,11 +10,14 @@
 #include <pthread.h>
 
 int (*_original_open)(const char *pathname, int flags, mode_t mode);
+int (*_original_creat)(const char *pathname, int flags, mode_t mode);
 int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode);
 int (*_original_close)(int fd);
 
 void init(void) __attribute__((constructor));
 int open(const char *pathname, int flags, mode_t mode);
+int creat(const char *pathname, int flags, mode_t mode);
+int openat(int dirfd, const char *pathname, int flags, mode_t mode);
 int close(int fd);
 
 static void store_pageinfo(int fd);
@@ -40,6 +43,8 @@ void init(void)
     int i;
     _original_open = (int (*)(const char *, int, mode_t))
         dlsym(RTLD_NEXT, "open");
+    _original_creat = (int (*)(const char *, int, mode_t))
+        dlsym(RTLD_NEXT, "creat");
     _original_openat = (int (*)(int, const char *, int, mode_t))
         dlsym(RTLD_NEXT, "openat");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
@@ -53,6 +58,16 @@ int open(const char *pathname, int flags, mode_t mode)
 {
     int fd;
     if((fd = _original_open(pathname, flags, mode)) != -1) {
+        store_pageinfo(fd);
+        fadv_noreuse(fd, 0, 0);
+    }
+    return fd;
+}
+
+int creat(const char *pathname, int flags, mode_t mode)
+{
+    int fd;
+    if((fd = _original_creat(pathname, flags, mode)) != -1) {
         store_pageinfo(fd);
         fadv_noreuse(fd, 0, 0);
     }
