@@ -15,6 +15,8 @@ int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode)
 int (*_original_close)(int fd);
 
 void init(void) __attribute__((constructor));
+void init_mutex(void);
+
 int open(const char *pathname, int flags, mode_t mode);
 int open64(const char *pathname, int flags, mode_t mode)
     __attribute__(( alias("open")));
@@ -30,6 +32,7 @@ int close(int fd);
 
 static void store_pageinfo(int fd);
 static void free_unclaimed_pages(int fd);
+
 extern int fadv_dontneed(int fd, off_t offset, off_t len);
 extern int fadv_noreuse(int fd, off_t offset, off_t len);
 extern void sync_if_writable(int fd);
@@ -56,10 +59,17 @@ void init(void)
     _original_openat = (int (*)(int, const char *, int, mode_t))
         dlsym(RTLD_NEXT, "openat");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
-    pthread_mutex_init(&lock, NULL);
     PAGESIZE = getpagesize();
     for(i = 0; i < _MAX_FDS; i++)
         fds[i].fd = -1;
+    init_mutex();
+}
+
+void init_mutex(void)
+{
+    pthread_mutex_init(&lock, NULL);
+    /* make sure to re-initialize mutex if forked */
+    pthread_atfork(NULL, NULL, init_mutex);
 }
 
 int open(const char *pathname, int flags, mode_t mode)
