@@ -32,7 +32,7 @@ struct fadv_info {
 };
 static struct fadv_info fds[_MAX_FDS];
 static size_t PAGESIZE;
-static pthread_mutex_t lock;
+static pthread_mutex_t lock; /* protects access to fds[] */
 
 void init(void)
 {
@@ -50,19 +50,15 @@ int open(const char *pathname, int flags, mode_t mode)
 {
     int fd;
     if((fd = _original_open(pathname, flags, mode)) != -1) {
-        pthread_mutex_lock(&lock);
         store_pageinfo(fd);
         fadv_noreuse(fd, 0, 0);
-        pthread_mutex_unlock(&lock);
     }
     return fd;
 }
 
 int close(int fd)
 {
-    pthread_mutex_lock(&lock);
     free_unclaimed_pages(fd);
-    pthread_mutex_unlock(&lock);
     return _original_close(fd);
 }
 
@@ -80,11 +76,15 @@ static void store_pageinfo(int fd)
         return;
 
     /* check if there's space to store the info */
+    pthread_mutex_lock(&lock);
     for(i = 0; i < _MAX_FDS && fds[i].fd != -1; i++)
         ;
-    if(i == _MAX_FDS)
+    if(i == _MAX_FDS) {
+        pthread_mutex_unlock(&lock);
         return; /* no space! */
+    }
     fds[i].fd = fd;
+    pthread_mutex_unlock(&lock);
 
     /* If size is 0, mmap() will fail. We'll keep the fd stored, anyway, to
      * make sure the newly written pages will be freed (so no cleanup!). */
@@ -127,9 +127,11 @@ static void free_unclaimed_pages(int fd)
     if(fd == -1)
         return;
 
+    pthread_mutex_lock(&lock);
     for(i = 0; i < _MAX_FDS; i++)
         if(fds[i].fd == fd)
             break;
+    pthread_mutex_unlock(&lock);
     if(i == _MAX_FDS)
         return; /* not found */
 
