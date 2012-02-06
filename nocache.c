@@ -77,7 +77,6 @@ int open(const char *pathname, int flags, mode_t mode)
     int fd;
     if((fd = _original_open(pathname, flags, mode)) != -1) {
         store_pageinfo(fd);
-        fadv_noreuse(fd, 0, 0);
     }
     return fd;
 }
@@ -87,7 +86,6 @@ int creat(const char *pathname, int flags, mode_t mode)
     int fd;
     if((fd = _original_creat(pathname, flags, mode)) != -1) {
         store_pageinfo(fd);
-        fadv_noreuse(fd, 0, 0);
     }
     return fd;
 }
@@ -97,7 +95,6 @@ int openat(int dirfd, const char *pathname, int flags, mode_t mode)
     int fd;
     if((fd = _original_openat(dirfd, pathname, flags, mode)) != -1) {
         store_pageinfo(fd);
-        fadv_noreuse(fd, 0, 0);
     }
     return fd;
 }
@@ -120,6 +117,10 @@ static void store_pageinfo(int fd)
         return;
     if(!S_ISREG(st.st_mode))
         return;
+
+    /* Hint we'll be using this file only once;
+     * the Linux kernel will currently ignore this */
+    fadv_noreuse(fd, 0, 0);
 
     /* check if there's space to store the info */
     pthread_mutex_lock(&lock);
