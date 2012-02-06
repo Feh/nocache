@@ -106,29 +106,9 @@ static void store_pageinfo(int fd)
         goto cleanup;
     if(mincore(file, st.st_size, pageinfo) == -1)
         goto cleanup;
-
     fds[i].info = pageinfo;
 
-#if DEBUG
-    fprintf(stderr, "cache stats: ");
-    int j;
-    for(j=0; i<pages; i++) {
-        fprintf(stderr, "%c", (pageinfo[j] & 1) ? 'Y' : 'N');
-    }
-    fprintf(stderr, "\n");
-
-    int j;
-    for(j=0; j<pages; j++)
-        if(!(pageinfo[j] & 1))
-            break;
-    if(j == pages)
-        fprintf(stderr, "was fully in cache: %d: %d/%d\n", fd, j, pages);
-    else
-        fprintf(stderr, "was not fully in cache: %d: %d/%d\n", fd, j, pages);
-#endif
-
     munmap(file, st.st_size);
-
     return;
 
     cleanup:
@@ -142,6 +122,7 @@ static void store_pageinfo(int fd)
 static void free_unclaimed_pages(int fd)
 {
     int i, j;
+    int start;
 
     if(fd == -1)
         return;
@@ -154,7 +135,6 @@ static void free_unclaimed_pages(int fd)
 
     sync_if_writable(fd);
 
-    int start;
     start = j = 0;
     while(j < fds[i].nr_pages) {
         if(fds[i].info[j] & 1) {
@@ -168,7 +148,6 @@ static void free_unclaimed_pages(int fd)
     /* forget written contents that go beyond previous file size */
     fadv_dontneed(fd, start < j ? start*PAGESIZE : fds[i].size, 0);
 
-    if(fds[i].info)
-        free(fds[i].info);
+    free(fds[i].info);
     fds[i].fd = -1;
 }
