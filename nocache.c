@@ -16,8 +16,14 @@ int (*_original_close)(int fd);
 
 void init(void) __attribute__((constructor));
 int open(const char *pathname, int flags, mode_t mode);
+int open64(const char *pathname, int flags, mode_t mode)
+    __attribute__(( alias("open")));
 int creat(const char *pathname, int flags, mode_t mode);
+int creat64(const char *pathname, int flags, mode_t mode)
+    __attribute__(( alias("creat")));
 int openat(int dirfd, const char *pathname, int flags, mode_t mode);
+int openat64(int dirfd, const char *pathname, int flags, mode_t mode)
+    __attribute__ ((alias ("openat")));
 int __openat_2(int dirfd, const char *pathname, int flags, mode_t mode)
     __attribute__ ((alias ("openat")));
 int close(int fd);
