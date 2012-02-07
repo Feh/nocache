@@ -13,6 +13,7 @@ int (*_original_open)(const char *pathname, int flags, mode_t mode);
 int (*_original_creat)(const char *pathname, int flags, mode_t mode);
 int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode);
 int (*_original_dup)(int fd);
+int (*_original_dup2)(int newfd, int oldfd);
 int (*_original_close)(int fd);
 
 static void init(void) __attribute__((constructor));
@@ -31,6 +32,7 @@ int openat64(int dirfd, const char *pathname, int flags, mode_t mode)
 int __openat_2(int dirfd, const char *pathname, int flags, mode_t mode)
     __attribute__ ((alias ("openat")));
 int dup(int oldfd);
+int dup2(int oldfd, int newfd);
 int close(int fd);
 
 static void store_pageinfo(int fd);
@@ -38,6 +40,7 @@ static void free_unclaimed_pages(int fd);
 
 extern int fadv_dontneed(int fd, off_t offset, off_t len);
 extern int fadv_noreuse(int fd, off_t offset, off_t len);
+extern int valid_fd(int fd);
 extern void sync_if_writable(int fd);
 
 #define _MAX_FDS 1024
@@ -62,6 +65,7 @@ static void init(void)
     _original_openat = (int (*)(int, const char *, int, mode_t))
         dlsym(RTLD_NEXT, "openat");
     _original_dup = (int (*)(int)) dlsym(RTLD_NEXT, "dup");
+    _original_dup2 = (int (*)(int, int)) dlsym(RTLD_NEXT, "dup2");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
     PAGESIZE = getpagesize();
     for(i = 0; i < _MAX_FDS; i++)
@@ -125,6 +129,22 @@ int dup(int oldfd)
         store_pageinfo(fd);
     }
     return fd;
+}
+
+int dup2(int oldfd, int newfd)
+{
+    int ret;
+
+    /* if newfd is already opened, the kernel will close it directly
+     * once dup2 is invoked. So now is the last chance to mark the
+     * pages as "DONTNEED" */
+    if(valid_fd(newfd))
+        free_unclaimed_pages(newfd);
+
+    if((ret = _original_dup2(oldfd, newfd)) != -1) {
+        store_pageinfo(newfd);
+    }
+    return ret;
 }
 
 int close(int fd)
