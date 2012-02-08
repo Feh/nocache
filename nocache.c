@@ -9,17 +9,15 @@
 #include <string.h>
 #include <pthread.h>
 
-int (*_original_open)(const char *pathname, int flags, mode_t mode);
-int (*_original_creat)(const char *pathname, int flags, mode_t mode);
-int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode);
-int (*_original_dup)(int fd);
-int (*_original_dup2)(int newfd, int oldfd);
-int (*_original_close)(int fd);
+#include "fcntl_helpers.h"
 
 static void init(void) __attribute__((constructor));
 static void destroy(void) __attribute__((destructor));
 static void init_mutex(void);
 static void handle_stdout(void);
+
+static void store_pageinfo(int fd);
+static void free_unclaimed_pages(int fd);
 
 int open(const char *pathname, int flags, mode_t mode);
 int open64(const char *pathname, int flags, mode_t mode)
@@ -36,14 +34,12 @@ int dup(int oldfd);
 int dup2(int oldfd, int newfd);
 int close(int fd);
 
-static void store_pageinfo(int fd);
-static void free_unclaimed_pages(int fd);
-
-extern int fadv_dontneed(int fd, off_t offset, off_t len);
-extern int fadv_noreuse(int fd, off_t offset, off_t len);
-extern int valid_fd(int fd);
-extern void sync_if_writable(int fd);
-extern int fcntl_dupfd(int fd, int arg);
+int (*_original_open)(const char *pathname, int flags, mode_t mode);
+int (*_original_creat)(const char *pathname, int flags, mode_t mode);
+int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode);
+int (*_original_dup)(int fd);
+int (*_original_dup2)(int newfd, int oldfd);
+int (*_original_close)(int fd);
 
 #define _MAX_FDS 1024
 
@@ -120,36 +116,32 @@ static void destroy(void)
 int open(const char *pathname, int flags, mode_t mode)
 {
     int fd;
-    if((fd = _original_open(pathname, flags, mode)) != -1) {
+    if((fd = _original_open(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
-    }
     return fd;
 }
 
 int creat(const char *pathname, int flags, mode_t mode)
 {
     int fd;
-    if((fd = _original_creat(pathname, flags, mode)) != -1) {
+    if((fd = _original_creat(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
-    }
     return fd;
 }
 
 int openat(int dirfd, const char *pathname, int flags, mode_t mode)
 {
     int fd;
-    if((fd = _original_openat(dirfd, pathname, flags, mode)) != -1) {
+    if((fd = _original_openat(dirfd, pathname, flags, mode)) != -1)
         store_pageinfo(fd);
-    }
     return fd;
 }
 
 int dup(int oldfd)
 {
     int fd;
-    if((fd = _original_dup(oldfd)) != -1) {
+    if((fd = _original_dup(oldfd)) != -1)
         store_pageinfo(fd);
-    }
     return fd;
 }
 
@@ -163,9 +155,8 @@ int dup2(int oldfd, int newfd)
     if(valid_fd(newfd))
         free_unclaimed_pages(newfd);
 
-    if((ret = _original_dup2(oldfd, newfd)) != -1) {
+    if((ret = _original_dup2(oldfd, newfd)) != -1)
         store_pageinfo(newfd);
-    }
     return ret;
 }
 
@@ -183,9 +174,7 @@ static void store_pageinfo(int fd)
     void *file = NULL;
     unsigned char *pageinfo = NULL;
 
-    if(fstat(fd, &st) == -1)
-        return;
-    if(!S_ISREG(st.st_mode))
+    if(fstat(fd, &st) == -1 || !S_ISREG(st.st_mode))
         return;
 
     /* Hint we'll be using this file only once;
