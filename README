@@ -23,6 +23,7 @@ Just type `make`. Then, prepend `./nocache` to your command:
 
 You can also put the `nocache.so` file to a location like
 `/usr/local/lib` and do `LD_PRELOAD=/usr/local/lib/nocache.so`.
+(This is what the `install` target will do.)
 
 
 Testing
@@ -37,7 +38,18 @@ For testing purposes, I included two small tools:
   is 0 (success) if the file is fully cached. In normal mode,
   the number of cached vs. not-cached pages is printed. In verbose
   mode (`-v`), an actual map is printed out, where each page that is
-  present in the cache is marked with `x`:
+  present in the cache is marked with `x`.
+
+It looks like this:
+
+    $ cachestats -v ~/somefile.mp3
+    pages in cache: 85/114 (74.6%)  [filesize=453.5K, pagesize=4K]
+    
+    cache map:
+         0: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+        32: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+        64: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x| | | | | | | | | | | | |
+        96: | | | | | | | | | | | | | | | | | |x|
 
 Also, you can use `vmstat 1` to view cache statistics.
 
