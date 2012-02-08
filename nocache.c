@@ -19,6 +19,7 @@ int (*_original_close)(int fd);
 static void init(void) __attribute__((constructor));
 static void destroy(void) __attribute__((destructor));
 static void init_mutex(void);
+static void handle_stdout(void);
 
 int open(const char *pathname, int flags, mode_t mode);
 int open64(const char *pathname, int flags, mode_t mode)
@@ -42,6 +43,7 @@ extern int fadv_dontneed(int fd, off_t offset, off_t len);
 extern int fadv_noreuse(int fd, off_t offset, off_t len);
 extern int valid_fd(int fd);
 extern void sync_if_writable(int fd);
+extern int fcntl_dupfd(int fd, int arg);
 
 #define _MAX_FDS 1024
 
@@ -71,6 +73,7 @@ static void init(void)
     for(i = 0; i < _MAX_FDS; i++)
         fds[i].fd = -1;
     init_mutex();
+    handle_stdout();
 }
 
 static void init_mutex(void)
@@ -78,6 +81,23 @@ static void init_mutex(void)
     pthread_mutex_init(&lock, NULL);
     /* make sure to re-initialize mutex if forked */
     pthread_atfork(NULL, NULL, init_mutex);
+}
+
+/* duplicate stdout if it is a regular file. We will use this later to
+ * fadvise(DONTNEED) on it, although the real stdout was already
+ * closed. This makes "nocache tar cfz" work properly. */
+static void handle_stdout(void)
+{
+    int fd;
+    struct stat st;
+
+    if(fstat(STDOUT_FILENO, &st) == -1 || !S_ISREG(st.st_mode))
+        return;
+
+    fd = fcntl_dupfd(STDOUT_FILENO, 23);
+    if(fd == -1)
+        return;
+    store_pageinfo(fd);
 }
 
 /* try to advise fds that were not manually closed */
@@ -88,6 +108,8 @@ static void destroy(void)
     for(i = 0; i < _MAX_FDS; i++) {
         if(fds[i].fd == -1)
             continue; /* slot is empty */
+        if(!valid_fd(fds[i].fd))
+            continue;
         pthread_mutex_unlock(&lock);
         free_unclaimed_pages(fds[i].fd);
         pthread_mutex_lock(&lock);

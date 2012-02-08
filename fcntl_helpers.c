@@ -29,3 +29,8 @@ void sync_if_writable(int fd)
     if((r & O_ACCMODE) != O_RDONLY)
         fdatasync(fd);
 }
+
+int fcntl_dupfd(int fd, int arg)
+{
+    return fcntl(fd, F_DUPFD, arg);
+}
