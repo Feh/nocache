@@ -33,6 +33,10 @@ int __openat_2(int dirfd, const char *pathname, int flags, mode_t mode)
 int dup(int oldfd);
 int dup2(int oldfd, int newfd);
 int close(int fd);
+FILE *fopen(const char *path, const char *mode);
+FILE *fopen64(const char *path, const char *mode)
+    __attribute__ ((alias ("fopen")));
+int fclose(FILE *fp);
 
 int (*_original_open)(const char *pathname, int flags, mode_t mode);
 int (*_original_creat)(const char *pathname, int flags, mode_t mode);
@@ -40,6 +44,8 @@ int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode)
 int (*_original_dup)(int fd);
 int (*_original_dup2)(int newfd, int oldfd);
 int (*_original_close)(int fd);
+FILE *(*_original_fopen)(const char *path, const char *mode);
+int (*_original_fclose)(FILE *fp);
 
 #define _MAX_FDS 1024
 
@@ -65,6 +71,9 @@ static void init(void)
     _original_dup = (int (*)(int)) dlsym(RTLD_NEXT, "dup");
     _original_dup2 = (int (*)(int, int)) dlsym(RTLD_NEXT, "dup2");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
+    _original_fopen = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");
+    _original_fclose = (int (*)(FILE *)) dlsym(RTLD_NEXT, "fclose");
+
     PAGESIZE = getpagesize();
     for(i = 0; i < _MAX_FDS; i++)
         fds[i].fd = -1;
@@ -164,6 +173,22 @@ int close(int fd)
 {
     free_unclaimed_pages(fd);
     return _original_close(fd);
+}
+
+FILE *fopen(const char *path, const char *mode)
+{
+    int fd;
+    FILE *fp;
+    if((fp = _original_fopen(path, mode)) != NULL)
+        if((fd = fileno(fp)) != -1)
+            store_pageinfo(fd);
+    return fp;
+}
+
+int fclose(FILE *fp)
+{
+    free_unclaimed_pages(fileno(fp));
+    return _original_fclose(fp);
 }
 
 static void store_pageinfo(int fd)
