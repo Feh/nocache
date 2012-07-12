@@ -90,6 +90,13 @@ the file descriptor is closed, this may not happen if they are left
 open when the application exits, although the destructor tries to do
 that.
 
+There are timing issues to consider, as well. If you consider `nocache
+cat <file>`, in most (all?) cases the cache will not be restored. For
+discussion and possible solutions see <http://lwn.net/Articles/480930/>.
+My experience showed that in many cases you could "fix" this by doing
+the `posix_fadvise` call *twice*. If you want this behaviour, compile
+the library using `make CFLAGS=-DDOUBLEFADVISE`.
+
 
 Acknowledgements
 ----------------

@@ -1,17 +1,18 @@
 default: all
 all: cachestats cachedel nocache.so
 
+GCC = gcc $(CFLAGS)
 %.c: Makefile
 cachestats: cachestats.c
-	gcc -Wall -o cachestats cachestats.c
+	$(GCC) -Wall -o cachestats cachestats.c
 cachedel: cachedel.c
-	gcc -Wall -o cachedel cachedel.c
+	$(GCC) -Wall -o cachedel cachedel.c
 nocache.o: nocache.c
-	gcc -Wall -fPIC -c -o nocache.o nocache.c
+	$(GCC) -Wall -fPIC -c -o nocache.o nocache.c
 fcntl_helpers.o: fcntl_helpers.c
-	gcc -Wall -fPIC -c -o fcntl_helpers.o fcntl_helpers.c
+	$(GCC) -Wall -fPIC -c -o fcntl_helpers.o fcntl_helpers.c
 nocache.so: nocache.o fcntl_helpers.o
-	gcc -Wall -pthread -shared -Wl,-soname,nocache.so -o nocache.so nocache.o fcntl_helpers.o -ldl
+	$(GCC) -Wall -pthread -shared -Wl,-soname,nocache.so -o nocache.so nocache.o fcntl_helpers.o -ldl
 
 install: all
 	install -m 0644 nocache.so /usr/local/lib

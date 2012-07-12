@@ -7,6 +7,9 @@
 
 int fadv_dontneed(int fd, off_t offset, off_t len)
 {
+#ifdef DOUBLEFADVISE
+        posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
+#endif
         return posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
 }
 
