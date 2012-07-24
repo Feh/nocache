@@ -62,6 +62,8 @@ static pthread_mutex_t lock; /* protects access to fds[] */
 static void init(void)
 {
     int i;
+    char *error;
+
     _original_open = (int (*)(const char *, int, mode_t))
         dlsym(RTLD_NEXT, "open");
     _original_creat = (int (*)(const char *, int, mode_t))
@@ -73,6 +75,11 @@ static void init(void)
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
     _original_fopen = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");
     _original_fclose = (int (*)(FILE *)) dlsym(RTLD_NEXT, "fclose");
+
+    if ((error = dlerror()) != NULL)  {
+        fprintf(stderr, "%s\n", error);
+        exit(EXIT_FAILURE);
+    }
 
     PAGESIZE = getpagesize();
     for(i = 0; i < _MAX_FDS; i++)
