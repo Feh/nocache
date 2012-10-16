@@ -20,7 +20,7 @@ install: all
 	install -m 0755 nocache.global /usr/local/bin/nocache
 
 test:
-	prove -v t
+	cd t; prove -v .
 
 clean:
 	rm -f cachestats cachedel fcntl_helpers.o nocache.o nocache.so

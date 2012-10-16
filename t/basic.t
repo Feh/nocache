@@ -1,20 +1,8 @@
 #!/bin/sh
-#set -x
 
 NR=0
 
-t() {
-    NR=$(expr $NR + 1)
-    if eval "$1"; then
-        echo "ok $NR - $2"
-    else
-        echo "not okay $NR - $2"
-    fi
-}
-
-if [ "$(basename "$(readlink -f .)")" != "t" ]; then
-    cd t || exit 1;
-fi
+. ./testlib.sh
 
 echo 1..4
 
