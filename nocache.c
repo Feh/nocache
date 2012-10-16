@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 #include <string.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "fcntl_helpers.h"
 
@@ -185,17 +186,32 @@ int close(int fd)
 FILE *fopen(const char *path, const char *mode)
 {
     int fd;
-    FILE *fp;
-    if((fp = _original_fopen(path, mode)) != NULL)
-        if((fd = fileno(fp)) != -1)
-            store_pageinfo(fd);
+    FILE *fp = NULL;
+
+    if(!_original_fopen)
+       _original_fopen = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");
+
+    if(_original_fopen) {
+        if((fp = _original_fopen(path, mode)) != NULL)
+            if((fd = fileno(fp)) != -1)
+                store_pageinfo(fd);
+    }
+
     return fp;
 }
 
 int fclose(FILE *fp)
 {
-    free_unclaimed_pages(fileno(fp));
-    return _original_fclose(fp);
+    if(!_original_fclose)
+        _original_fclose = (int (*)(FILE *)) dlsym(RTLD_NEXT, "fclose");
+
+    if(_original_fclose) {
+       free_unclaimed_pages(fileno(fp));
+       return _original_fclose(fp);
+    }
+
+    errno = EFAULT;
+    return EOF;
 }
 
 static void store_pageinfo(int fd)
