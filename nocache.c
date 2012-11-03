@@ -8,7 +8,7 @@
 #include <dlfcn.h>
 #include <string.h>
 #include <pthread.h>
-
+#include <errno.h>
 #include "fcntl_helpers.h"
 
 static void init(void) __attribute__((constructor));
