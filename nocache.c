@@ -20,31 +20,31 @@ static void store_pageinfo(int fd);
 static void free_unclaimed_pages(int fd);
 
 int open(const char *pathname, int flags, mode_t mode);
-int open64(const char *pathname, int flags, mode_t mode)
-    __attribute__(( alias("open")));
+int open64(const char *pathname, int flags, mode_t mode);    
 int creat(const char *pathname, int flags, mode_t mode);
-int creat64(const char *pathname, int flags, mode_t mode)
-    __attribute__(( alias("creat")));
+int creat64(const char *pathname, int flags, mode_t mode);
 int openat(int dirfd, const char *pathname, int flags, mode_t mode);
-int openat64(int dirfd, const char *pathname, int flags, mode_t mode)
-    __attribute__ ((alias ("openat")));
+int openat64(int dirfd, const char *pathname, int flags, mode_t mode);
 int __openat_2(int dirfd, const char *pathname, int flags, mode_t mode)
     __attribute__ ((alias ("openat")));
 int dup(int oldfd);
 int dup2(int oldfd, int newfd);
 int close(int fd);
 FILE *fopen(const char *path, const char *mode);
-FILE *fopen64(const char *path, const char *mode)
-    __attribute__ ((alias ("fopen")));
+FILE *fopen64(const char *path, const char *mode);
 int fclose(FILE *fp);
 
 int (*_original_open)(const char *pathname, int flags, mode_t mode);
+int (*_original_open64)(const char *pathname, int flags, mode_t mode);
 int (*_original_creat)(const char *pathname, int flags, mode_t mode);
+int (*_original_creat64)(const char *pathname, int flags, mode_t mode);
 int (*_original_openat)(int dirfd, const char *pathname, int flags, mode_t mode);
+int (*_original_openat64)(int dirfd, const char *pathname, int flags, mode_t mode);
 int (*_original_dup)(int fd);
 int (*_original_dup2)(int newfd, int oldfd);
 int (*_original_close)(int fd);
 FILE *(*_original_fopen)(const char *path, const char *mode);
+FILE *(*_original_fopen64)(const char *path, const char *mode);
 int (*_original_fclose)(FILE *fp);
 
 #define _MAX_FDS 1024
@@ -66,14 +66,21 @@ static void init(void)
 
     _original_open = (int (*)(const char *, int, mode_t))
         dlsym(RTLD_NEXT, "open");
+    _original_open64 = (int (*)(const char *, int, mode_t))
+        dlsym(RTLD_NEXT, "open64");
     _original_creat = (int (*)(const char *, int, mode_t))
         dlsym(RTLD_NEXT, "creat");
+    _original_creat64 = (int (*)(const char *, int, mode_t))
+        dlsym(RTLD_NEXT, "creat64");
     _original_openat = (int (*)(int, const char *, int, mode_t))
         dlsym(RTLD_NEXT, "openat");
+    _original_openat64 = (int (*)(int, const char *, int, mode_t))
+        dlsym(RTLD_NEXT, "openat64");
     _original_dup = (int (*)(int)) dlsym(RTLD_NEXT, "dup");
     _original_dup2 = (int (*)(int, int)) dlsym(RTLD_NEXT, "dup2");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
     _original_fopen = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");
+    _original_fopen64 = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen64");
     _original_fclose = (int (*)(FILE *)) dlsym(RTLD_NEXT, "fclose");
 
     if ((error = dlerror()) != NULL)  {
@@ -137,6 +144,14 @@ int open(const char *pathname, int flags, mode_t mode)
     return fd;
 }
 
+int open64(const char *pathname, int flags, mode_t mode)
+{
+    int fd;
+    if((fd = _original_open64(pathname, flags, mode)) != -1)
+        store_pageinfo(fd);
+    return fd;
+}
+
 int creat(const char *pathname, int flags, mode_t mode)
 {
     int fd;
@@ -145,10 +160,26 @@ int creat(const char *pathname, int flags, mode_t mode)
     return fd;
 }
 
+int creat64(const char *pathname, int flags, mode_t mode)
+{
+    int fd;
+    if((fd = _original_creat64(pathname, flags, mode)) != -1)
+        store_pageinfo(fd);
+    return fd;
+}
+
 int openat(int dirfd, const char *pathname, int flags, mode_t mode)
 {
     int fd;
     if((fd = _original_openat(dirfd, pathname, flags, mode)) != -1)
+        store_pageinfo(fd);
+    return fd;
+}
+
+int openat64(int dirfd, const char *pathname, int flags, mode_t mode)
+{
+    int fd;
+    if((fd = _original_openat64(dirfd, pathname, flags, mode)) != -1)
         store_pageinfo(fd);
     return fd;
 }
@@ -191,6 +222,21 @@ FILE *fopen(const char *path, const char *mode)
        _original_fopen = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");    
     if(_original_fopen) {
        if((fp = _original_fopen(path, mode)) != NULL)
+           if((fd = fileno(fp)) != -1)
+            store_pageinfo(fd);
+    }
+    return fp;
+}
+
+FILE *fopen64(const char *path, const char *mode)
+{
+    int fd;
+    FILE *fp;
+    fp = NULL;
+    if(!_original_fopen64)         
+       _original_fopen64 = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen64");    
+    if(_original_fopen64) {
+       if((fp = _original_fopen64(path, mode)) != NULL)
            if((fd = fileno(fp)) != -1)
             store_pageinfo(fd);
     }
