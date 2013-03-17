@@ -1,0 +1,23 @@
+Source: nocache
+Section: utils
+Priority: optional
+Maintainer: Dmitry Smirnov <onlyjob@member.fsf.org>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.4
+Homepage: https://github.com/Feh/nocache
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/nocache.git
+Vcs-Git: git://anonscm.debian.org/collab-maint/nocache.git
+
+Package: nocache
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: bypass/minimize file system caching for a program
+ `nocache` tries to minimize the effect an application has on the Linux
+ file system cache.
+ .
+ Use case: backup processes that should not interfere with the present
+ state of the cache.
+ .
+ Also this package provides the following utilities:
+ * `cachedel`   : clear page cache for a file.
+ * `cachestats` : print number of cached vs. not-cached pages for a file

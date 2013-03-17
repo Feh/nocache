@@ -1,0 +1,56 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+%:
+	dh $@ --parallel
+
+debian/tmp/nocache:
+	echo "debian/$(notdir $@.in) ::  $@"
+	mkdir debian/tmp
+	perl -pE 's{##libpath##}{$(DEB_BUILD_MULTIARCH)}g;' debian/$(notdir $@.in) > $@
+
+override_dh_auto_build:
+	CFLAGS="$(CFLAGS) $(CPPFLAGS) $(LDFLAGS)" dh_auto_build
+
+override_dh_install: debian/tmp/nocache
+	dh_install nocache.so /usr/lib/$(DEB_BUILD_MULTIARCH)/nocache
+
+override_dh_auto_install:
+	@
+
+override_dh_auto_test:
+	-dh_auto_test
+
+override_dh_builddeb:
+	dh_builddeb -- -Zxz
+
+PKD  = $(abspath $(dir $(MAKEFILE_LIST)))
+PKG  = $(word 2,$(shell dpkg-parsechangelog -l$(PKD)/changelog | grep ^Source))
+VER ?= $(shell dpkg-parsechangelog -l$(PKD)/changelog | perl -ne 'print $$1 if m{Version:\s*([\d\.+git]+)}')
+GDATE = $(shell echo $(VER) | perl -ne 'print "$$1-$$2-$$3" if m/\+git(\d{4})(\d{2})(\d{2})/')
+.PHONY: get-orig-source
+get-orig-source: $(PKG)_$(VER).orig.tar.xz
+	@
+
+$(PKG)_$(VER).orig.tar.xz:
+	@echo "# Downloading..."
+	#uscan --noconf --verbose --rename --destdir=$(CURDIR) --check-dirname-level=0 --force-download --download-version $(VER) $(PKD)
+	git clone git://github.com/Feh/nocache.git $(PKG)-$(VER) \
+	|| $(RM) -r $(PKG)-$(VER)
+	cd $(PKG)-$(VER) \
+	&& git reset --hard $$(git rev-list --all -n 1 --before="$(GDATE) +0000") \
+	&& git checkout master \
+	&& [ -s ChangeLog ] || ( echo "# Generating ChangeLog..." \
+           ; git log --pretty="format:%ad  %aN  <%aE>%n%n%x09* %s%n" --date=short > ChangeLog \
+           ; touch -d "$(GDATE) 0:0:0 +0000" ChangeLog) \
+	&& echo "# Setting times..." \
+        && for F in $$(git ls-tree -r --name-only HEAD); do touch -d "$$(git log -1 --format="%ai" -- $$F)" "$$F"; done \
+	&& echo "# Cleaning-up..." \
+        && $(RM) -rv .git .git* stylish-chrome stylish-firefox \
+	&& echo "# Re-setting dir. times..." \
+        && find . -xdev -type d -exec touch -d "$(GDATE) 0:0:0 +0000" '{}' \;\
+	&& cd .. && echo "# Packing..." \
+        && tar -caf $(PKG)_$(VER).orig.tar.xz $(PKG)-$(VER) --owner=root --group=root --mode=a+rX
+	$(RM) -r $(PKG)-$(VER)

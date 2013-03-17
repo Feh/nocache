@@ -1,0 +1,17 @@
+.TH NOCACHE "1" "March 2013" "nocache" ""
+.SH NAME
+nocache \- don't use Linux page cache on given command
+.SH SYNOPSIS
+nocache \fBcommand\fR [argument...]
+.SH DESCRIPTION
+The `nocache` tool tries to minimize the effect an application has on
+the Linux file system cache. This is done by intercepting the `open`
+and `close` system calls and calling `posix_fadvise` with the
+`POSIX_FADV_DONTNEED` parameter. Because the library remembers which
+pages (ie., 4K-blocks of the file) were already in file system cache
+when the file was opened, these will not be marked as "don't need",
+because other applications might need that, although they are not
+actively used (think: hot standby).
+
+Use case: backup processes that should not interfere with the present
+state of the cache.
