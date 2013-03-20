@@ -48,7 +48,7 @@ $(PKG)_$(VER).orig.tar.xz:
 	&& echo "# Setting times..." \
         && for F in $$(git ls-tree -r --name-only HEAD); do touch -d "$$(git log -1 --format="%ai" -- $$F)" "$$F"; done \
 	&& echo "# Cleaning-up..." \
-        && $(RM) -rv .git .git* stylish-chrome stylish-firefox \
+        && $(RM) -rv .git .git* \
 	&& echo "# Re-setting dir. times..." \
         && find . -xdev -type d -exec touch -d "$(GDATE) 0:0:0 +0000" '{}' \;\
 	&& cd .. && echo "# Packing..." \
