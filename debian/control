@@ -1,7 +1,7 @@
 Source: nocache
 Section: utils
 Priority: optional
-Maintainer: Dmitry Smirnov <onlyjob@member.fsf.org>
+Maintainer: Dmitry Smirnov <onlyjob@debian.org>
 Build-Depends: debhelper (>= 9)
 Standards-Version: 3.9.4
 Homepage: https://github.com/Feh/nocache

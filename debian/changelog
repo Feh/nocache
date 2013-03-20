@@ -2,4 +2,4 @@ nocache (0+git20121017-1) unstable; urgency=low
 
   * Initial release (Closes: #702854).
 
- -- Dmitry Smirnov <onlyjob@member.fsf.org>  Mon, 18 Mar 2013 00:32:17 +1100
+ -- Dmitry Smirnov <onlyjob@debian.org>  Mon, 18 Mar 2013 00:32:17 +1100
