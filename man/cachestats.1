@@ -1,0 +1,28 @@
+.TH CACHESTATS "1" "March 2013" "cachestats" ""
+.SH NAME
+cachestats \- print cache statistics for a file
+.SH SYNOPSIS
+cachestats [\-qv] \fBfile\fR
+.SH DESCRIPTION
+Print number of cached vs. not-cached pages.
+.SH OPTIONS
+.TP
+\fB\-v\fR "Verbose mode"
+Print verbose cache map, where each page that is present in the cache is
+marked with `x`.
+.TP
+\fB\-q\fR "Quiet mode"
+The exit status is 0 (success) if the file is fully cached.
+.SH EXAMPLE
+.EX
+$ cachestats \-v ~/somefile.mp3
+pages in cache: 85/114 (74.6%)  [filesize=453.5K, pagesize=4K]
+
+cache map:
+     0: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+    32: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+    64: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x| | | | | | | | | | | | |
+    96: | | | | | | | | | | | | | | | | | |x|
+.EE
+.SH SEE ALSO
+Also, you can use `vmstat 1` to view cache statistics.
