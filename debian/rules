@@ -29,7 +29,8 @@ override_dh_builddeb:
 PKD  = $(abspath $(dir $(MAKEFILE_LIST)))
 PKG  = $(word 2,$(shell dpkg-parsechangelog -l$(PKD)/changelog | grep ^Source))
 VER ?= $(shell dpkg-parsechangelog -l$(PKD)/changelog | perl -ne 'print $$1 if m{Version:\s*([\d\.+git]+)}')
-GDATE = $(shell echo $(VER) | perl -ne 'print "$$1-$$2-$$3" if m/\+git(\d{4})(\d{2})(\d{2})/')
+## get-orig-source
+GDATE = $(shell date --rfc-3339=seconds --date='TZ="UTC" $(shell echo $(VER) | perl -ne 'print "$$1-$$2-$$3" if m/\+git(\d{4})(\d{2})(\d{2})/')')
 .PHONY: get-orig-source
 get-orig-source: $(PKG)_$(VER).orig.tar.xz
 	@
@@ -40,17 +41,17 @@ $(PKG)_$(VER).orig.tar.xz:
 	git clone git://github.com/Feh/nocache.git $(PKG)-$(VER) \
 	|| $(RM) -r $(PKG)-$(VER)
 	cd $(PKG)-$(VER) \
-	&& git reset --hard $$(git rev-list --all -n 1 --before="$(GDATE) +0000") \
+	&& git reset --hard $$(git rev-list --all -n 1 --before="$(GDATE)") \
 	&& git checkout master \
 	&& [ -s ChangeLog ] || ( echo "# Generating ChangeLog..." \
            ; git log --pretty="format:%ad  %aN  <%aE>%n%n%x09* %s%n" --date=short > ChangeLog \
-           ; touch -d "$(GDATE) 0:0:0 +0000" ChangeLog) \
+           ; touch -d "$(GDATE)" ChangeLog) \
 	&& echo "# Setting times..." \
         && for F in $$(git ls-tree -r --name-only HEAD); do touch -d "$$(git log -1 --format="%ai" -- $$F)" "$$F"; done \
 	&& echo "# Cleaning-up..." \
         && $(RM) -rv .git .git* \
 	&& echo "# Re-setting dir. times..." \
-        && find . -xdev -type d -exec touch -d "$(GDATE) 0:0:0 +0000" '{}' \;\
+        && find . -xdev -type d -exec touch -d "$(GDATE)" '{}' \;\
 	&& cd .. && echo "# Packing..." \
         && tar -caf $(PKG)_$(VER).orig.tar.xz $(PKG)-$(VER) --owner=root --group=root --mode=a+rX
 	$(RM) -r $(PKG)-$(VER)
