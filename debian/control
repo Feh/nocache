@@ -3,6 +3,8 @@ Section: utils
 Priority: optional
 Maintainer: Dmitry Smirnov <onlyjob@debian.org>
 Build-Depends: debhelper (>= 9)
+# git is needed by get-orig-source
+ ,git
 Standards-Version: 3.9.4
 Homepage: https://github.com/Feh/nocache
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/nocache.git
