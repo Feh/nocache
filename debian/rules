@@ -7,7 +7,6 @@
 	dh $@ --parallel
 
 debian/tmp/nocache:
-	echo "debian/$(notdir $@.in) ::  $@"
 	mkdir debian/tmp
 	perl -pE 's{##libpath##}{$(DEB_BUILD_MULTIARCH)}g;' debian/$(notdir $@.in) > $@
 
