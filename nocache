@@ -1,3 +1,10 @@
 #!/bin/sh
-export LD_PRELOAD="./nocache.so"
+libnocache="./nocache.so"
+
+if [ -n "$LD_PRELOAD" ]; then
+    export LD_PRELOAD="$libnocache $LD_PRELOAD"
+else
+    export LD_PRELOAD="$libnocache"
+fi
+
 exec "$@"
