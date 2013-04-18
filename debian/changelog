@@ -1,3 +1,9 @@
+nocache (0+git20121017-2) unstable; urgency=low
+
+  * Fixed Issue #5: extend (not override) LD_PRELOAD.
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Thu, 18 Apr 2013 12:27:13 +1000
+
 nocache (0+git20121017-1) unstable; urgency=low
 
   * Initial release (Closes: #702854).
