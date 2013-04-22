@@ -1,5 +1,6 @@
 #!/bin/sh
-libnocache="./nocache.so"
+NOCACHE_PATH=$(dirname "$0")
+libnocache="$NOCACHE_PATH/nocache.so"
 
 if [ -n "$LD_PRELOAD" ]; then
     export LD_PRELOAD="$libnocache $LD_PRELOAD"
