@@ -1,5 +1,9 @@
 #!/bin/sh
-libnocache="/usr/local/lib/nocache.so"
+
+#DESTDIR=/usr/local
+DESTDIR=/usr
+
+libnocache="$DESTDIR/lib/nocache.so"
 
 if [ -n "$LD_PRELOAD" ]; then
     export LD_PRELOAD="$libnocache $LD_PRELOAD"
