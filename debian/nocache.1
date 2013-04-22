@@ -1,0 +1,111 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH NOCACHE 1 "April 22, 2013" "User Commands"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+nocache \- minimize filesystem caching effects
+.SH SYNOPSIS
+.B nocache
+.IR "command" 
+.RI [ "argument..." ]
+.PP
+.B cachedel 
+.IR "file"
+.PP
+.B cachestats
+.RI [ \-v ]
+.RI [ \-q ]
+.IR "file"
+.SH DESCRIPTION
+\fBnocache\fP tries to minimize effects on the Linux file system cache, induced by running 
+\fBcommand\fP.
+.PP
+This is done by intercepting the open and close system calls and calling \fBposix_fadvise\fP with the \fBPOSIX_FADV_DONTNEED\fP parameter. Because the library remembers which pages (ie., 4K-blocks of the file) were already in file system cache when the file was opened, these will not be marked as \fI"don't need"\fP, because other applications might need that, although they are not actively used (think: hot standby).
+
+Use case: backup processes that should not interfere with the present state of the cache.
+
+
+.\" TeX users may be more comfortable with the \fB<whatever>\fP and
+.\" \fI<whatever>\fP escape sequences to invode bold face and italics,
+.\" respectively.
+\fBcachedel\fP calls \fBposix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED)\fP on the file argument. Thus, if the file is not accessed by any other application, the pages will be eradicated from the filesystem cache.
+
+\fBcachestats\fP displays current cache statistics of file. It has three modes: 
+.IP "\fBquiet mode (-q)\fP"
+the exit status is 0 (success) if the file is fully cached.
+.IP "\fBnormal mode\fP"
+the number of cached vs. not-cached pages is printed.
+.IP "\fBverbose mode (-v)\fP"
+an actual map is printed out, where each page that is present in the cache is marked with x.
+.SH EXAMPLES
+Without \fBnocache\fP, the file will be fully cached when you copy it somewhere:
+
+$ \fBcachestats\fP ~/file.mp3
+.br 
+pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
+
+$ \fBcp\fP ~/file.mp3 /tmp
+
+$ \fBcachestats\fP ~/file.mp3
+.br 
+pages in cache: 1945/1945 (100.0%)  [filesize=7776.2K, pagesize=4K]
+
+With nocache, the original caching state will be preserved.
+
+$ \fBcachestats\fP ~/file.mp3
+.br
+pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
+
+$ \fBnocache\fP cp ~/file.mp3 /tmp
+
+$ \fBcachestats\fP ~/file.mp3
+.br
+pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
+.PP
+
+\fBcachestats\fP verbose mode looks like this:
+
+$ \fBcachestats\fP -v ~/somefile.mp3
+.br
+pages in cache: 85/114 (74.6%)  [filesize=453.5K, pagesize=4K]
+.PP
+.PP
+cache map:
+     0: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+.br
+    32: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+.br
+    64: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x| | | | | | | | | | | | |
+.br
+    96: | | | | | | | | | | | | | | | | | |x|
+
+.SH LIMITATIONS
+The pre-loaded library tries really hard to catch all system calls that open or close a file. This happens by "hijacking" the libc functions that wrap the actual system calls. In some cases, this may fail, for example because the application does some clever wrapping. (That is the reason why \fB__openat_2\fP is defined: GNU tar uses this instead of a regular openat.)
+
+However, since the actual fadvise calls are performed right before the file descriptor is closed, this may not happen if they are left open when the application exits, although the destructor tries to do that.
+
+There are timing issues to consider, as well. If you consider nocache cat \fIfile\fP, in most (all?) cases the cache will not be restored. For discussion and possible solutions see \fBhttp://lwn.net/Articles/480930/\fP. My experience showed that in many cases you could "fix" this by doing the posix_fadvise call twice. If you want this behaviour, compile the library using \fBmake CFLAGS=-DDOUBLEFADVISE\fP.
+
+.SH SEE ALSO
+.BR posix_fadvise (2),
+.br
+.SH ACKNOWLEDGEMENT
+Most of the application logic is from Tobias Oetiker's patch for rsync http://insights.oetiker.ch/linux/fadvise.html. Note however, that rsync uses sockets, so if you try a nocache rsync, only the local process will be intercepted.
+.SH AUTHOR
+nocache was written by Julius Plenz <julius@plenz.com>.
+.PP
+This manual page was written by Reda NOUSHI <reda@logzilla.pro>,
+for the Debian project (and may be used by others).

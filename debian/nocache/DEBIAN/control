@@ -1,0 +1,21 @@
+Package: nocache
+Version: 220420131-2
+Architecture: amd64
+Maintainer: Reda NOUSHI <reda@logzilla.pro>
+Installed-Size: 78
+Depends: libc6 (>= 2.3.4)
+Section: admin
+Priority: extra
+Homepage: https://github.com/Feh/nocache
+Description: minimize caching effects
+ The nocache tool tries to minimize the effect an application has on
+ the Linux file system cache. This is done by intercepting the open
+ and close system calls and calling posix_fadvise with the
+ POSIX_FADV_DONTNEED parameter. Because the library remembers which
+ pages (ie., 4K-blocks of the file) were already in file system cache
+ when the file was opened, these will not be marked as "don't need",
+ because other applications might need that, although they are not
+ actively used (think: hot standby).
+ .
+ Use case: backup processes that should not interfere with the present
+ state of the cache. <insert long description, indented with spaces>

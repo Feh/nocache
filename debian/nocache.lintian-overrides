@@ -1,0 +1,4 @@
+shlib-without-versioned-soname
+nocache: manpage-has-errors-from-man usr/share/man/man1/cachedel.1.gz 87: warning [p 2, 1.3i]: cannot adjust line
+nocache: manpage-has-errors-from-man usr/share/man/man1/cachestats.1.gz 87: warning [p 2, 1.3i]: cannot adjust line
+nocache: manpage-has-errors-from-man usr/share/man/man1/nocache.1.gz 87: warning [p 2, 1.3i]: cannot adjust line

@@ -1,0 +1,107 @@
+nocache - minimize filesystem caching effects
+---------------------------------------------
+
+The `nocache` tool tries to minimize the effect an application has on
+the Linux file system cache. This is done by intercepting the `open`
+and `close` system calls and calling `posix_fadvise` with the
+`POSIX_FADV_DONTNEED` parameter. Because the library remembers which
+pages (ie., 4K-blocks of the file) were already in file system cache
+when the file was opened, these will not be marked as "don't need",
+because other applications might need that, although they are not
+actively used (think: hot standby).
+
+Use case: backup processes that should not interfere with the present
+state of the cache.
+
+
+Install and Use
+---------------
+
+Just type `make`. Then, prepend `./nocache` to your command:
+
+    ./nocache cp -a ~/ /mnt/backup/home-$(hostname)
+
+You can also put the `nocache.so` file to a location like
+`/usr/local/lib` and do `LD_PRELOAD=/usr/local/lib/nocache.so`.
+(This is what the `install` target will do.)
+
+
+Testing
+-------
+
+For testing purposes, I included two small tools:
+
+* `cachedel` calls `posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED)` on
+  the file argument. Thus, if the file is not accessed by any other
+  application, the pages will be eradicated from the fs cache.
+* `cachestats` has three modes: In quiet mode (`-q`), the exit status
+  is 0 (success) if the file is fully cached. In normal mode,
+  the number of cached vs. not-cached pages is printed. In verbose
+  mode (`-v`), an actual map is printed out, where each page that is
+  present in the cache is marked with `x`.
+
+It looks like this:
+
+    $ cachestats -v ~/somefile.mp3
+    pages in cache: 85/114 (74.6%)  [filesize=453.5K, pagesize=4K]
+    
+    cache map:
+         0: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+        32: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+        64: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x| | | | | | | | | | | | |
+        96: | | | | | | | | | | | | | | | | | |x|
+
+Also, you can use `vmstat 1` to view cache statistics.
+
+
+Example run
+-----------
+
+Without `nocache`, the file will be fully cached when you copy it
+somewhere:
+
+    $ ./cachestats ~/file.mp3
+    pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
+    $ cp ~/file.mp3 /tmp
+    $ ./cachestats ~/file.mp3
+    pages in cache: 1945/1945 (100.0%)  [filesize=7776.2K, pagesize=4K]
+
+With `nocache`, the original caching state will be preserved.
+
+    $ ./cachestats ~/file.mp3
+    pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
+    $ ./nocache cp ~/file.mp3 /tmp
+    $ ./cachestats ~/file.mp3
+    pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
+
+
+Limitations
+-----------
+
+The pre-loaded library tries really hard to catch all system calls
+that open or close a file. This happens by "hijacking" the libc
+functions that wrap the actual system calls. In some cases, this may
+fail, for example because the application does some clever wrapping.
+(That is the reason why `__openat_2` is defined: GNU `tar` uses this
+instead of a regular `openat`.)
+
+However, since the actual `fadvise` calls are performed right before
+the file descriptor is closed, this may not happen if they are left
+open when the application exits, although the destructor tries to do
+that.
+
+There are timing issues to consider, as well. If you consider `nocache
+cat <file>`, in most (all?) cases the cache will not be restored. For
+discussion and possible solutions see <http://lwn.net/Articles/480930/>.
+My experience showed that in many cases you could "fix" this by doing
+the `posix_fadvise` call *twice*. If you want this behaviour, compile
+the library using `make CFLAGS=-DDOUBLEFADVISE`.
+
+
+Acknowledgements
+----------------
+
+Most of the application logic is from Tobias Oetiker's patch for
+`rsync` <http://insights.oetiker.ch/linux/fadvise.html>. Note however,
+that `rsync` uses sockets, so if you try a `nocache rsync`, only
+the local process will be intercepted.
