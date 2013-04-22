@@ -5,10 +5,6 @@ DESTDIR=/usr
 
 libnocache="$DESTDIR/lib/nocache.so"
 
-if [ -n "$LD_PRELOAD" ]; then
-    export LD_PRELOAD="$libnocache $LD_PRELOAD"
-else
-    export LD_PRELOAD="$libnocache"
-fi
+export LD_PRELOAD="$libnocache $LD_PRELOAD"
 
 exec "$@"
