@@ -16,8 +16,8 @@ nocache.so: nocache.o fcntl_helpers.o
 	$(GCC) -Wall -pthread -shared -Wl,-soname,nocache.so -o nocache.so nocache.o fcntl_helpers.o -ldl
 
 install: all
-	install -m 0644 nocache.so /usr/local/lib
-	install -m 0755 nocache.global /usr/local/bin/nocache
+	install -m 0644 nocache.so $(DESTDIR)/usr/lib
+	install -m 0755 nocache.global $(DESTDIR)/usr/bin/nocache
 
 test:
 	cd t; prove -v .

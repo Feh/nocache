@@ -1,9 +1,0 @@
-fe0fe50f50898f2be78c02881c892c88  usr/bin/nocache
-6a818f21178e78e6febde35e8baa07f4  usr/lib/nocache.so
-9ed6d6439cfc63af4da27be895639bba  usr/share/doc/nocache/README
-665d4d0c657fec5bd86ada90d77fe669  usr/share/doc/nocache/changelog.Debian.gz
-3d75217277857d8d3f7073db60612e73  usr/share/doc/nocache/copyright
-ba9647211694d07082efeaf52377d29e  usr/share/lintian/overrides/nocache
-108f0932eaff961c054975b317972e24  usr/share/man/man1/cachedel.1.gz
-108f0932eaff961c054975b317972e24  usr/share/man/man1/cachestats.1.gz
-108f0932eaff961c054975b317972e24  usr/share/man/man1/nocache.1.gz
