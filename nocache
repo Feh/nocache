@@ -8,4 +8,9 @@ else
     export LD_PRELOAD="$libnocache"
 fi
 
+if [ "$1" = "-n" ]; then
+    export NOCACHE_NR_FADVISE="$2"
+    shift 2
+fi
+
 exec "$@"
