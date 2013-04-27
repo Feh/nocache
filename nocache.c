@@ -9,6 +9,9 @@
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <assert.h>
 
 #include "fcntl_helpers.h"
 
@@ -48,7 +51,6 @@ int (*_original_close)(int fd);
 FILE *(*_original_fopen)(const char *path, const char *mode);
 int (*_original_fclose)(FILE *fp);
 
-#define _MAX_FDS 1024
 
 struct fadv_info {
     int fd;
@@ -56,7 +58,8 @@ struct fadv_info {
     unsigned int nr_pages;
     unsigned char *info;
 };
-static struct fadv_info fds[_MAX_FDS];
+static int max_fds;
+static struct fadv_info *fds;
 static size_t PAGESIZE;
 static pthread_mutex_t lock; /* protects access to fds[] */
 
@@ -64,7 +67,15 @@ static void init(void)
 {
     int i;
     char *error;
-
+    struct rlimit rlim;
+    
+    getrlimit(RLIMIT_NOFILE, &rlim);
+    max_fds=(int) rlim.rlim_max;
+    
+    fds=(struct fadv_info *) malloc(max_fds * sizeof(struct fadv_info));
+    
+    assert(fds != NULL);
+    
     _original_open = (int (*)(const char *, int, mode_t))
         dlsym(RTLD_NEXT, "open");
     _original_creat = (int (*)(const char *, int, mode_t))
@@ -82,8 +93,10 @@ static void init(void)
         exit(EXIT_FAILURE);
     }
 
+
+
     PAGESIZE = getpagesize();
-    for(i = 0; i < _MAX_FDS; i++)
+    for(i = 0; i < max_fds; i++)
         fds[i].fd = -1;
     init_mutex();
     handle_stdout();
@@ -118,7 +131,7 @@ static void destroy(void)
 {
     int i;
     pthread_mutex_lock(&lock);
-    for(i = 0; i < _MAX_FDS; i++) {
+    for(i = 0; i < max_fds; i++) {
         if(fds[i].fd == -1)
             continue; /* slot is empty */
         if(!valid_fd(fds[i].fd))
@@ -231,9 +244,9 @@ static void store_pageinfo(int fd)
 
     /* check if there's space to store the info */
     pthread_mutex_lock(&lock);
-    for(i = 0; i < _MAX_FDS && fds[i].fd != -1; i++)
+    for(i = 0; i < max_fds && fds[i].fd != -1; i++)
         ;
-    if(i == _MAX_FDS) {
+    if(i == max_fds) {
         pthread_mutex_unlock(&lock);
         return; /* no space! */
     }
@@ -282,11 +295,11 @@ static void free_unclaimed_pages(int fd)
         return;
 
     pthread_mutex_lock(&lock);
-    for(i = 0; i < _MAX_FDS; i++)
+    for(i = 0; i < max_fds; i++)
         if(fds[i].fd == fd)
             break;
     pthread_mutex_unlock(&lock);
-    if(i == _MAX_FDS)
+    if(i == max_fds)
         return; /* not found */
 
     sync_if_writable(fd);
