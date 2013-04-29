@@ -1,0 +1,6 @@
+nocache (220420131-2) unstable; urgency=low
+
+  * Initial release
+  * Makefile fix to allow for DESTDIR
+
+ -- Reda NOUSHI <reda@logzilla.pro>  Mon, 22 Apr 2013 16:40:13 +0000
