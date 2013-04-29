@@ -63,9 +63,13 @@ static struct fadv_info *fds;
 static size_t PAGESIZE;
 static pthread_mutex_t lock; /* protects access to fds[] */
 
+static char *env_nr_fadvise = "NOCACHE_NR_FADVISE";
+static int nr_fadvise;
+
 static void init(void)
 {
     int i;
+    char *s;
     char *error;
     struct rlimit rlim;
     
@@ -93,7 +97,10 @@ static void init(void)
         exit(EXIT_FAILURE);
     }
 
-
+    if((s = getenv(env_nr_fadvise)) != NULL)
+        nr_fadvise = atoi(s);
+    if(nr_fadvise <= 0)
+        nr_fadvise = 1;
 
     PAGESIZE = getpagesize();
     for(i = 0; i < max_fds; i++)
@@ -308,14 +315,14 @@ static void free_unclaimed_pages(int fd)
     while(j < fds[i].nr_pages) {
         if(fds[i].info[j] & 1) {
             if(start < j)
-                fadv_dontneed(fd, start*PAGESIZE, (j - start) * PAGESIZE);
+                fadv_dontneed(fd, start*PAGESIZE, (j - start) * PAGESIZE, nr_fadvise);
             start = j + 1;
         }
         j++;
     }
 
     /* forget written contents that go beyond previous file size */
-    fadv_dontneed(fd, start < j ? start*PAGESIZE : fds[i].size, 0);
+    fadv_dontneed(fd, start < j ? start*PAGESIZE : fds[i].size, 0, nr_fadvise);
 
     free(fds[i].info);
     fds[i].fd = -1;

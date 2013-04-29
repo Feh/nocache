@@ -34,6 +34,8 @@ For testing purposes, I included two small tools:
 * `cachedel` calls `posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED)` on
   the file argument. Thus, if the file is not accessed by any other
   application, the pages will be eradicated from the fs cache.
+  Specifying -n <number> will repeat the syscall the given number of
+  times which can be useful in some circumstances (see below).
 * `cachestats` has three modes: In quiet mode (`-q`), the exit status
   is 0 (success) if the file is fully cached. In normal mode,
   the number of cached vs. not-cached pages is printed. In verbose
@@ -94,9 +96,17 @@ There are timing issues to consider, as well. If you consider `nocache
 cat <file>`, in most (all?) cases the cache will not be restored. For
 discussion and possible solutions see <http://lwn.net/Articles/480930/>.
 My experience showed that in many cases you could "fix" this by doing
-the `posix_fadvise` call *twice*. If you want this behaviour, compile
-the library using `make CFLAGS=-DDOUBLEFADVISE`.
+the `posix_fadvise` call *twice*. For both tools `nocache` and
+`cachedel` you can specify the number using `-n`, like so:
 
+    $ nocache -n 2 cat ~/file.mp3
+
+This actually only sets the environment variable `NOCACHE_NR_FADVISE`
+to the specified value, and the shared library reads out this value.
+If test number 3 in `t/basic.t` fails, then try increasing this number
+until it works, e.g.:
+
+    $ env NOCACHE_NR_FADVISE=2 make test
 
 Acknowledgements
 ----------------

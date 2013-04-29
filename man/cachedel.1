@@ -2,6 +2,10 @@
 .SH NAME
 cachedel \- drop pagecache for a file
 .SH SYNOPSIS
-cachedel \fBfile\fR
+cachedel [-n <n>] \fBfile\fR
+.SH OPTIONS
+.TP
+\fB\-n <n>\fR "Repeat system call"
+Will call posix_fadvise(POSIX_FADV_DONTNEED) \fB<n>\fR in a row.
 .SH DESCRIPTION
-Call fadvise(DONTNEED) on file
+Call posix_fadvise(POSIX_FADV_DONTNEED) on file.

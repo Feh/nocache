@@ -5,12 +5,12 @@
 /* Since open() and close() are re-defined in nocache.c, it's not
  * possible to include <fcntl.h> there. So we do it here. */
 
-int fadv_dontneed(int fd, off_t offset, off_t len)
+int fadv_dontneed(int fd, off_t offset, off_t len, int n)
 {
-#ifdef DOUBLEFADVISE
-        posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
-#endif
-        return posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
+        int i, ret;
+        for(i = 0, ret = 0; i < n && ret == 0; i++)
+            ret = posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
+        return ret;
 }
 
 int fadv_noreuse(int fd, off_t offset, off_t len)
