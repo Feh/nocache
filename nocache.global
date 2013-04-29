@@ -1,10 +1,12 @@
-#!/bin/sh
-libnocache="/usr/local/lib/nocache.so"
+#!/bin/sh 
+BASEDIR="/usr/local"
+libnocache="$BASEDIR/lib/nocache.so"
 
-if [ -n "$LD_PRELOAD" ]; then
-    export LD_PRELOAD="$libnocache $LD_PRELOAD"
-else
-    export LD_PRELOAD="$libnocache"
+export LD_PRELOAD="$libnocache $LD_PRELOAD"
+
+if [ "$1" = "-n" ]; then
+    export NOCACHE_NR_FADVISE="$2"
+    shift 2
 fi
 
 exec "$@"
