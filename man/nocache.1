@@ -2,7 +2,13 @@
 .SH NAME
 nocache \- don't use Linux page cache on given command
 .SH SYNOPSIS
-nocache \fBcommand\fR [argument...]
+nocache [-n <n>] \fBcommand\fR [argument...]
+.SH OPTIONS
+.TP
+\fB\-n <n>\fR "Set number of fadvise calls"
+Execute the `posix_fadvise` system call \fB<n>\fR times in a row.
+Depending on your machine, this might give better results (use it if in
+your tests `nocache` fails to eradicate pages from cache properly).
 .SH DESCRIPTION
 The `nocache` tool tries to minimize the effect an application has on
 the Linux file system cache. This is done by intercepting the `open`
