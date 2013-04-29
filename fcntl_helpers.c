@@ -8,7 +8,7 @@
 int fadv_dontneed(int fd, off_t offset, off_t len, int n)
 {
         int i, ret;
-        for(i = 0; i < n; i++)
+        for(i = 0, ret = 0; i < n && ret == 0; i++)
             ret = posix_fadvise(fd, offset, len, POSIX_FADV_DONTNEED);
         return ret;
 }
