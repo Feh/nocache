@@ -3,6 +3,6 @@ t() {
     if eval "$1"; then
         echo "ok $NR - $2"
     else
-        echo "not okay $NR - $2"
+        echo "not ok $NR - $2"
     fi
 }
