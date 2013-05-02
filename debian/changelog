@@ -3,6 +3,7 @@ nocache (0.8+git20130430-1) UNRELEASED; urgency=low
   * New upstream release [April 2013].
   * Removed our man pages and ship upstream ones (our man pages were
     accepted and improved upstream).
+  * New patch to fix "hyphen-used-as-minus-sign" in man pages.
   * get-orig-source improved to produce identical orig.tar (when
     possible) with accurate file's timestamps.
   * debian/watch to mangle debian version.
