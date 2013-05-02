@@ -1,3 +1,14 @@
+nocache (0.8+git20130430-1) UNRELEASED; urgency=low
+
+  * New upstream release [April 2013].
+  * Removed our man pages and ship upstream ones (our man pages were
+    accepted and improved upstream).
+  * get-orig-source improved to produce identical orig.tar (when
+    possible) with accurate file's timestamps.
+  * debian/watch to mangle debian version.
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Thu, 02 May 2013 10:15:26 +1000
+
 nocache (0+git20121017-2) unstable; urgency=low
 
   * Fixed Issue #5: extend (not override) LD_PRELOAD.
