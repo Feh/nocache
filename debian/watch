@@ -1,7 +1,8 @@
 # uscan(1) configuration file.
 version=3
 
-## Upstream do not tag releases yet.
 ## To generate orig.tar please use "debian/rules get-orig-source".
 
+opts=\
+dversionmangle=s/\+git\d+// \
  https://github.com/Feh/nocache/tags .*/archive/v?(\d[-\d\.]+)\.tar\.gz
