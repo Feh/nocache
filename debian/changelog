@@ -1,4 +1,4 @@
-nocache (0.8+git20130430-1) UNRELEASED; urgency=low
+nocache (0.8+git20130430-1) unstable; urgency=low
 
   * New upstream release [April 2013].
   * Removed our man pages and ship upstream ones (our man pages were
@@ -8,7 +8,7 @@ nocache (0.8+git20130430-1) UNRELEASED; urgency=low
     possible) with accurate file's timestamps.
   * debian/watch to mangle debian version.
 
- -- Dmitry Smirnov <onlyjob@debian.org>  Thu, 02 May 2013 10:15:26 +1000
+ -- Dmitry Smirnov <onlyjob@debian.org>  Thu, 02 May 2013 11:44:54 +1000
 
 nocache (0+git20121017-2) unstable; urgency=low
 
