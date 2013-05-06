@@ -9,9 +9,4 @@ if [ "$1" = "-n" ]; then
     shift 2
 fi
 
-if [ "$1" = "-n" ]; then
-    export NOCACHE_NR_FADVISE="$2"
-    shift 2
-fi
-
 exec "$@"
