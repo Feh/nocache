@@ -25,6 +25,12 @@ You can also put the `nocache.so` file to a location like
 `/usr/local/lib` and do `LD_PRELOAD=/usr/local/lib/nocache.so`.
 (This is what the `install` target will do.)
 
+Debian unstable packages are available at http://packages.debian.org/sid/nocache.
+Please note that `nocache` will only build on a system that has
+support for the `posix_fadvise` syscall and exposes it, too. This
+should be the case on most modern Unices, but kfreebsd notably has no
+support for this as of now.
+
 
 Testing
 -------
