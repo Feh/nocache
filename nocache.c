@@ -12,6 +12,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <assert.h>
+#include <signal.h>
 
 #include "fcntl_helpers.h"
 
@@ -326,9 +327,13 @@ static void store_pageinfo(int fd)
     struct stat st;
     void *file = NULL;
     unsigned char *pageinfo = NULL;
+    sigset_t mask, old_mask;
+
+    sigfillset(&mask);
+    sigprocmask(SIG_BLOCK, &mask, &old_mask);
 
     if(fstat(fd, &st) == -1 || !S_ISREG(st.st_mode))
-        return;
+        goto restoresigset;
 
     /* Hint we'll be using this file only once;
      * the Linux kernel will currently ignore this */
@@ -340,7 +345,7 @@ static void store_pageinfo(int fd)
         ;
     if(i == max_fds) {
         pthread_mutex_unlock(&lock);
-        return; /* no space! */
+        goto restoresigset; /* no space! */
     }
     fds[i].fd = fd;
     pthread_mutex_unlock(&lock);
@@ -351,7 +356,7 @@ static void store_pageinfo(int fd)
         fds[i].size = 0;
         fds[i].nr_pages = 0;
         fds[i].info = NULL;
-        return;
+        goto restoresigset;
     }
 
     fds[i].size = st.st_size;
@@ -368,7 +373,7 @@ static void store_pageinfo(int fd)
     fds[i].info = pageinfo;
 
     munmap(file, st.st_size);
-    return;
+    goto restoresigset;
 
     cleanup:
     fds[i].fd = -1;
@@ -376,15 +381,24 @@ static void store_pageinfo(int fd)
         free(pageinfo);
     if(file)
         munmap(file, st.st_size);
+
+    restoresigset:
+    sigprocmask(SIG_SETMASK, &old_mask, NULL);
+
+    return;
 }
 
 static void free_unclaimed_pages(int fd)
 {
     int i, j;
     int start;
+    sigset_t mask, old_mask;
 
     if(fd == -1)
         return;
+
+    sigfillset(&mask);
+    sigprocmask(SIG_BLOCK, &mask, &old_mask);
 
     pthread_mutex_lock(&lock);
     for(i = 0; i < max_fds; i++)
@@ -392,7 +406,7 @@ static void free_unclaimed_pages(int fd)
             break;
     pthread_mutex_unlock(&lock);
     if(i == max_fds)
-        return; /* not found */
+        goto restoresigset; /* not found */
 
     sync_if_writable(fd);
 
@@ -411,4 +425,7 @@ static void free_unclaimed_pages(int fd)
 
     free(fds[i].info);
     fds[i].fd = -1;
+
+    restoresigset:
+    sigprocmask(SIG_SETMASK, &old_mask, NULL);
 }
