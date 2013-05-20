@@ -80,18 +80,12 @@ static void init(void)
 
     assert(fds != NULL);
 
-    _original_open = (int (*)(const char *, int, mode_t))
-        dlsym(RTLD_NEXT, "open");
-    _original_open64 = (int (*)(const char *, int, mode_t))
-        dlsym(RTLD_NEXT, "open64");
-    _original_creat = (int (*)(const char *, int, mode_t))
-        dlsym(RTLD_NEXT, "creat");
-    _original_creat64 = (int (*)(const char *, int, mode_t))
-        dlsym(RTLD_NEXT, "creat64");
-    _original_openat = (int (*)(int, const char *, int, mode_t))
-        dlsym(RTLD_NEXT, "openat");
-    _original_openat64 = (int (*)(int, const char *, int, mode_t))
-        dlsym(RTLD_NEXT, "openat64");
+    _original_open = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "open");
+    _original_open64 = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "open64");
+    _original_creat = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "creat");
+    _original_creat64 = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "creat64");
+    _original_openat = (int (*)(int, const char *, int, mode_t)) dlsym(RTLD_NEXT, "openat");
+    _original_openat64 = (int (*)(int, const char *, int, mode_t)) dlsym(RTLD_NEXT, "openat64");
     _original_dup = (int (*)(int)) dlsym(RTLD_NEXT, "dup");
     _original_dup2 = (int (*)(int, int)) dlsym(RTLD_NEXT, "dup2");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
