@@ -72,14 +72,14 @@ static void init(void)
     char *s;
     char *error;
     struct rlimit rlim;
-    
+
     getrlimit(RLIMIT_NOFILE, &rlim);
     max_fds=(int) rlim.rlim_max;
-    
+
     fds=(struct fadv_info *) malloc(max_fds * sizeof(struct fadv_info));
-    
+
     assert(fds != NULL);
-    
+
     _original_open = (int (*)(const char *, int, mode_t))
         dlsym(RTLD_NEXT, "open");
     _original_open64 = (int (*)(const char *, int, mode_t))
@@ -256,13 +256,16 @@ FILE *fopen64(const char *path, const char *mode)
     int fd;
     FILE *fp;
     fp = NULL;
+
     if(!_original_fopen64)
-       _original_fopen64 = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen64");
+        _original_fopen64 = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen64");
+
     if(_original_fopen64) {
        if((fp = _original_fopen64(path, mode)) != NULL)
            if((fd = fileno(fp)) != -1)
-            store_pageinfo(fd);
+               store_pageinfo(fd);
     }
+
     return fp;
 }
 
@@ -272,8 +275,8 @@ int fclose(FILE *fp)
         _original_fclose = (int (*)(FILE *)) dlsym(RTLD_NEXT, "fclose");
 
     if(_original_fclose) {
-       free_unclaimed_pages(fileno(fp));
-       return _original_fclose(fp);
+        free_unclaimed_pages(fileno(fp));
+        return _original_fclose(fp);
     }
 
     errno = EFAULT;
