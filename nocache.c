@@ -157,6 +157,7 @@ int open(const char *pathname, int flags, mode_t mode)
 
     if(!_original_open)
         _original_open = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "open");
+    assert(_original_open != NULL);
 
     if((fd = _original_open(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
@@ -169,6 +170,7 @@ int open64(const char *pathname, int flags, mode_t mode)
 
     if(!_original_open64)
         _original_open64 = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "open64");
+    assert(_original_open64 != NULL);
 
     if((fd = _original_open64(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
@@ -181,6 +183,7 @@ int creat(const char *pathname, int flags, mode_t mode)
 
     if(!_original_creat)
         _original_creat = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "creat");
+    assert(_original_creat != NULL);
 
     if((fd = _original_creat(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
@@ -193,6 +196,7 @@ int creat64(const char *pathname, int flags, mode_t mode)
 
     if(!_original_creat64)
         _original_creat64 = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "creat64");
+    assert(_original_creat64 != NULL);
 
     if((fd = _original_creat64(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
@@ -205,6 +209,7 @@ int openat(int dirfd, const char *pathname, int flags, mode_t mode)
 
     if(!_original_openat)
         _original_openat = (int (*)(int, const char *, int, mode_t)) dlsym(RTLD_NEXT, "openat");
+    assert(_original_openat != NULL);
 
     if((fd = _original_openat(dirfd, pathname, flags, mode)) != -1)
         store_pageinfo(fd);
@@ -217,6 +222,7 @@ int openat64(int dirfd, const char *pathname, int flags, mode_t mode)
 
     if(!_original_openat64)
         _original_openat64 = (int (*)(int, const char *, int, mode_t)) dlsym(RTLD_NEXT, "openat64");
+    assert(_original_openat64 != NULL);
 
     if((fd = _original_openat64(dirfd, pathname, flags, mode)) != -1)
         store_pageinfo(fd);
@@ -229,6 +235,7 @@ int dup(int oldfd)
 
     if(!_original_dup)
         _original_dup = (int (*)(int)) dlsym(RTLD_NEXT, "dup");
+    assert(_original_dup != NULL);
 
     if((fd = _original_dup(oldfd)) != -1)
         store_pageinfo(fd);
@@ -247,6 +254,7 @@ int dup2(int oldfd, int newfd)
 
     if(!_original_dup2)
         _original_dup2 = (int (*)(int, int)) dlsym(RTLD_NEXT, "dup2");
+    assert(_original_dup2 != NULL);
 
     if((ret = _original_dup2(oldfd, newfd)) != -1)
         store_pageinfo(newfd);
@@ -257,6 +265,7 @@ int close(int fd)
 {
     if(!_original_close)
         _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
+    assert(_original_close != NULL);
 
     free_unclaimed_pages(fd);
     return _original_close(fd);
@@ -269,6 +278,7 @@ FILE *fopen(const char *path, const char *mode)
 
     if(!_original_fopen)
        _original_fopen = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");
+    assert(_original_fopen != NULL);
 
     if((fp = _original_fopen(path, mode)) != NULL)
         if((fd = fileno(fp)) != -1)
@@ -285,6 +295,7 @@ FILE *fopen64(const char *path, const char *mode)
 
     if(!_original_fopen64)
         _original_fopen64 = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen64");
+    assert(_original_fopen64 != NULL);
 
     if((fp = _original_fopen64(path, mode)) != NULL)
         if((fd = fileno(fp)) != -1)
@@ -297,6 +308,7 @@ int fclose(FILE *fp)
 {
     if(!_original_fclose)
         _original_fclose = (int (*)(FILE *)) dlsym(RTLD_NEXT, "fclose");
+    assert(_original_fclose != NULL);
 
     if(_original_fclose) {
         free_unclaimed_pages(fileno(fp));
