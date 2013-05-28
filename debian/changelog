@@ -1,3 +1,17 @@
+nocache (0.9-1) unstable; urgency=low
+
+  * New upstream release [May 2013].
+    + dropped "man.patch" (applied-upstream).
+  * New "make.patch" to rewrite Makefile from scratch in usable way.
+    + simplified rules, let Makefile do the job.
+  * No longer use our executable wrapper template (Closes: #710019).
+  * Use NOCACHE_NR_FADVISE=2 for post-build tests to fix often failing
+    test #3 and to test FADVISE>1.
+  * get-orig-source to checkout tag and to set timestamp of generated
+    ChangeLog to commit date.
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Fri, 31 May 2013 00:06:53 +1000
+
 nocache (0.8+git20130430-1) unstable; urgency=low
 
   * New upstream release [April 2013].

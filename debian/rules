@@ -4,20 +4,12 @@
 #export DH_VERBOSE=1
 
 %:
-	dh $@ --parallel
-
-debian/tmp/nocache:
-	mkdir debian/tmp
-	perl -pE 's{##libpath##}{$(DEB_BUILD_MULTIARCH)}g;' debian/$(notdir $@.in) > $@
-
-override_dh_auto_build:
-	CFLAGS="$(CFLAGS) $(CPPFLAGS) $(LDFLAGS)" dh_auto_build
-
-override_dh_install: debian/tmp/nocache
-	dh_install nocache.so /usr/lib/$(DEB_BUILD_MULTIARCH)/nocache
+	dh $@
 
 override_dh_auto_install:
-	@
+	dh_auto_install -v -- PREFIX=/usr LIBDIR=/lib/$(PKG)
+	# check if wrapper built for correct PREFIX and LIBDIR
+	[ -n "$$(grep '/usr/lib/$(PKG)/$(PKG)' $(CURDIR)/debian/$(PKG)/usr/bin/$(PKG))" ]
 
 override_dh_auto_test:
 	-NOCACHE_NR_FADVISE=2 dh_auto_test -v
