@@ -20,7 +20,7 @@ override_dh_auto_install:
 	@
 
 override_dh_auto_test:
-	-dh_auto_test
+	-NOCACHE_NR_FADVISE=2 dh_auto_test -v
 
 override_dh_builddeb:
 	dh_builddeb -- -Zxz
