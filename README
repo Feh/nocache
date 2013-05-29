@@ -14,16 +14,17 @@ Use case: backup processes that should not interfere with the present
 state of the cache.
 
 
-Install and Use
----------------
+Installation and Usage
+----------------------
 
 Just type `make`. Then, prepend `./nocache` to your command:
 
     ./nocache cp -a ~/ /mnt/backup/home-$(hostname)
 
-You can also put the `nocache.so` file to a location like
-`/usr/local/lib` and do `LD_PRELOAD=/usr/local/lib/nocache.so`.
-(This is what the `install` target will do.)
+The command `make install` will install the shared library, man
+pages and the `nocache`, `cachestats` and `cachedel` commands
+under `/usr/local`. You can specify an alternate prefix by using
+`make install PREFIX=/usr`.
 
 Debian unstable packages are available at http://packages.debian.org/sid/nocache.
 Please note that `nocache` will only build on a system that has
