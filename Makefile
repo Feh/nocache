@@ -39,9 +39,10 @@ $(mandir) $(libdir) $(bindir):
 	mkdir -v -p $@
 
 install: all $(mandir) $(libdir) $(bindir) nocache.global
-	install -m 0644 $(MANPAGES) $(mandir)
 	install -m 0644 nocache.so $(libdir)
 	install -m 0755 nocache.global $(bindir)/nocache
+	install -m 0755 $(CACHE_BINS) $(bindir)
+	install -m 0644 $(MANPAGES) $(mandir)
 
 .PHONY: uninstall
 uninstall:
