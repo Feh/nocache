@@ -26,7 +26,8 @@ pages and the `nocache`, `cachestats` and `cachedel` commands
 under `/usr/local`. You can specify an alternate prefix by using
 `make install PREFIX=/usr`.
 
-Debian unstable packages are available at http://packages.debian.org/sid/nocache.
+Debian packages are available, see http://packages.qa.debian.org/n/nocache.html.
+
 Please note that `nocache` will only build on a system that has
 support for the `posix_fadvise` syscall and exposes it, too. This
 should be the case on most modern Unices, but kfreebsd notably has no
