@@ -57,8 +57,10 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
     if(st.st_size == 0) {
-        fprintf(stderr, "%s: file size is 0!\n", argv[1]);
-        return EXIT_FAILURE;
+        printf("pages in cache: %d/%d (%.1f%%)  [filesize=%.1fK, "
+                "pagesize=%dK]\n", 0, 0, 0.0,
+                0.0, PAGESIZE / 1024);
+        return EXIT_SUCCESS;
     }
 
     pages = (st.st_size + PAGESIZE - 1) / PAGESIZE;
