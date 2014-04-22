@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
             fn = argv[3];
     } else if(argc != 2) {
         fprintf(stderr, "usage: %s [-n <n>] <file> "
-            "-- call fadvise(DONTNEED) <n> times on file", argv[0]);
+            "-- call fadvise(DONTNEED) <n> times on file\n", argv[0]);
         exit(1);
     } else {
         fn = argv[1];
