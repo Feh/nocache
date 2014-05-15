@@ -116,6 +116,25 @@ until it works, e.g.:
 
     $ env NOCACHE_NR_FADVISE=2 make test
 
+Alternate Approaches
+--------------------
+
+If you have a fairly recent Linux kernel, you can also try to simply
+cage a cache-intensive application in a memory-limited cgroup. For
+example, I use the following command in the startup part of my backup
+script:
+
+    sudo env ppid=$$ sh -c '
+        cgcreate -g memory:backup ;
+        cgcreate -g blkio:backup ;
+        echo 256M > /sys/fs/cgroup/memory/backup/memory.limit_in_bytes ;
+        echo 100 > /sys/fs/cgroup/blkio/backup/blkio.weight ;
+        echo $ppid > /sys/fs/cgroup/memory/backup/tasks ;
+        echo $ppid > /sys/fs/cgroup/blkio/backup/tasks ;
+    '
+
+More info: https://www.kernel.org/doc/Documentation/cgroups/memory.txt
+
 Acknowledgements
 ----------------
 
