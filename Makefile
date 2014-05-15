@@ -13,17 +13,18 @@ CACHE_BINS=cachedel cachestats
 NOCACHE_BINS=nocache.o fcntl_helpers.o
 MANPAGES=$(wildcard man/*.1)
 
+CC = gcc
 CFLAGS+= -Wall
-GCC = gcc $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
+COMPILE = $(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 .PHONY: all
 all: $(CACHE_BINS) nocache.so nocache
 
 $(CACHE_BINS):
-	$(GCC) -o $@ $@.c
+	$(COMPILE) -o $@ $@.c
 
 $(NOCACHE_BINS):
-	$(GCC) -fPIC -c -o $@ $(@:.o=.c)
+	$(COMPILE) -fPIC -c -o $@ $(@:.o=.c)
 
 nocache.global:
 	sed 's!##libdir##!$(subst $(DESTDIR),,$(libdir))!' <nocache.in >$@
@@ -33,7 +34,7 @@ nocache:
 	chmod a+x $@
 
 nocache.so: $(NOCACHE_BINS)
-	$(GCC) -pthread -shared -Wl,-soname,nocache.so -o nocache.so $(NOCACHE_BINS) -ldl
+	$(COMPILE) -pthread -shared -Wl,-soname,nocache.so -o nocache.so $(NOCACHE_BINS) -ldl
 
 $(mandir) $(libdir) $(bindir):
 	mkdir -v -p $@
