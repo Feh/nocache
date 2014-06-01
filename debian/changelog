@@ -1,3 +1,10 @@
+nocache (0.9-2) unstable; urgency=medium
+
+  * Disabled freezing post-build tests to fix FTBFS (Closes: #746888).
+  * Standards-Version to 3.9.5.
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Sun, 01 Jun 2014 19:53:43 +1000
+
 nocache (0.9-1) unstable; urgency=low
 
   * New upstream release [May 2013].
