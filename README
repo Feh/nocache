@@ -63,6 +63,16 @@ It looks like this:
 
 Also, you can use `vmstat 1` to view cache statistics.
 
+Debugging
+---------
+
+If you export the environment variable `NOCACHE_DEBUGFD` to a positive
+number and it refers to a file descriptor opened for writing, then
+`nocache` will print debugging messages to this file descriptor. It is
+probably best used by letting the shell open a file and passing that
+descriptor, as follows:
+
+    env 8>/tmp/nocache.log NOCACHE_DEBUGFD=8 nocache [arguments]
 
 Example run
 -----------
