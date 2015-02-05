@@ -478,15 +478,20 @@ static void free_unclaimed_pages(int fd)
     start = j = 0;
     while(j < fds[i].nr_pages) {
         if(fds[i].info[j] & 1) {
-            if(start < j)
+            if(start < j) {
+                DEBUG("fadv_dontneed(fd=%d, frompage=%d, topage=%d)\n", fd, start, j);
                 fadv_dontneed(fd, start*PAGESIZE, (j - start) * PAGESIZE, nr_fadvise);
+            }
             start = j + 1;
         }
         j++;
     }
 
     /* forget written contents that go beyond previous file size */
-    fadv_dontneed(fd, start < j ? start*PAGESIZE : fds[i].size, 0, nr_fadvise);
+    start = start < j ? start*PAGESIZE : fds[i].size;
+    DEBUG("fadv_dontneed(fd=%d, rest of pages, starting at byte %d / page %zd)\n",
+        fd, start, start/PAGESIZE);
+    fadv_dontneed(fd, start, 0, nr_fadvise);
 
     free(fds[i].info);
     fds[i].fd = -1;
