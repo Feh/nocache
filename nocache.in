@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 export LD_PRELOAD="##libdir##/nocache.so $LD_PRELOAD"
 
@@ -7,4 +7,15 @@ if [ "$1" = "-n" ]; then
     shift 2
 fi
 
+while getopts "n:D:" opt; do
+case "$opt" in
+    n) export NOCACHE_NR_FADVISE="$OPTARG" ;;
+    D) exec {debugfd}>"$OPTARG";
+       export NOCACHE_DEBUGFD="$debugfd"
+       ;;
+esac
+done
+shift $((OPTIND-1))
+
+echo "[nocache] DEBUG: Executing: $@" >&$debugfd
 exec "$@"

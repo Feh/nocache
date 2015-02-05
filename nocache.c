@@ -19,6 +19,7 @@
 static void init(void) __attribute__((constructor));
 static void destroy(void) __attribute__((destructor));
 static void init_mutex(void);
+static void init_debugging(void);
 static void handle_stdout(void);
 
 static void store_pageinfo(int fd);
@@ -67,6 +68,17 @@ static pthread_mutex_t lock; /* protects access to fds[] */
 static char *env_nr_fadvise = "NOCACHE_NR_FADVISE";
 static int nr_fadvise;
 
+static char *env_debugfd = "NOCACHE_DEBUGFD";
+int debugfd = -1;
+FILE *debugfp;
+
+#define DEBUG(...) \
+    do { \
+        if(debugfp != NULL) { \
+            fprintf(debugfp, "[nocache] DEBUG: " __VA_ARGS__); \
+        } \
+    } while(0)
+
 static void init(void)
 {
     int i;
@@ -108,6 +120,7 @@ static void init(void)
     for(i = 0; i < max_fds; i++)
         fds[i].fd = -1;
     init_mutex();
+    init_debugging();
     handle_stdout();
 }
 
@@ -116,6 +129,17 @@ static void init_mutex(void)
     pthread_mutex_init(&lock, NULL);
     /* make sure to re-initialize mutex if forked */
     pthread_atfork(NULL, NULL, init_mutex);
+}
+
+static void init_debugging(void)
+{
+    char *s = getenv(env_debugfd);
+    if(!s)
+        return;
+    debugfd = atoi(s);
+    debugfp = fdopen(debugfd, "a");
+    if(!debugfp)
+        return;
 }
 
 /* duplicate stdout if it is a regular file. We will use this later to
@@ -160,6 +184,8 @@ int open(const char *pathname, int flags, mode_t mode)
         _original_open = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "open");
     assert(_original_open != NULL);
 
+    DEBUG("open(pathname=%s, flags=0x%x, mode=0%o)\n", pathname, flags, mode);
+
     if((fd = _original_open(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
     return fd;
@@ -172,6 +198,8 @@ int open64(const char *pathname, int flags, mode_t mode)
     if(!_original_open64)
         _original_open64 = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "open64");
     assert(_original_open64 != NULL);
+
+    DEBUG("open64(pathname=%s, flags=0x%x, mode=0%o)\n", pathname, flags, mode);
 
     if((fd = _original_open64(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
@@ -186,6 +214,8 @@ int creat(const char *pathname, int flags, mode_t mode)
         _original_creat = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "creat");
     assert(_original_creat != NULL);
 
+    DEBUG("creat(pathname=%s, flags=0x%x, mode=0%o)\n", pathname, flags, mode);
+
     if((fd = _original_creat(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
     return fd;
@@ -198,6 +228,8 @@ int creat64(const char *pathname, int flags, mode_t mode)
     if(!_original_creat64)
         _original_creat64 = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "creat64");
     assert(_original_creat64 != NULL);
+
+    DEBUG("creat64(pathname=%s, flags=0x%x, mode=0%o)\n", pathname, flags, mode);
 
     if((fd = _original_creat64(pathname, flags, mode)) != -1)
         store_pageinfo(fd);
@@ -212,6 +244,8 @@ int openat(int dirfd, const char *pathname, int flags, mode_t mode)
         _original_openat = (int (*)(int, const char *, int, mode_t)) dlsym(RTLD_NEXT, "openat");
     assert(_original_openat != NULL);
 
+    DEBUG("openat(dirfd=%d, pathname=%s, flags=0x%x, mode=0%o)\n", dirfd, pathname, flags, mode);
+
     if((fd = _original_openat(dirfd, pathname, flags, mode)) != -1)
         store_pageinfo(fd);
     return fd;
@@ -225,6 +259,8 @@ int openat64(int dirfd, const char *pathname, int flags, mode_t mode)
         _original_openat64 = (int (*)(int, const char *, int, mode_t)) dlsym(RTLD_NEXT, "openat64");
     assert(_original_openat64 != NULL);
 
+    DEBUG("openat64(dirfd=%d, pathname=%s, flags=0x%x, mode=0%o)\n", dirfd, pathname, flags, mode);
+
     if((fd = _original_openat64(dirfd, pathname, flags, mode)) != -1)
         store_pageinfo(fd);
     return fd;
@@ -237,6 +273,8 @@ int dup(int oldfd)
     if(!_original_dup)
         _original_dup = (int (*)(int)) dlsym(RTLD_NEXT, "dup");
     assert(_original_dup != NULL);
+
+    DEBUG("dup(oldfd=%d)\n", oldfd);
 
     if((fd = _original_dup(oldfd)) != -1)
         store_pageinfo(fd);
@@ -257,6 +295,8 @@ int dup2(int oldfd, int newfd)
         _original_dup2 = (int (*)(int, int)) dlsym(RTLD_NEXT, "dup2");
     assert(_original_dup2 != NULL);
 
+    DEBUG("dup2(oldfd=%d, newfd=%d)\n", oldfd, newfd);
+
     if((ret = _original_dup2(oldfd, newfd)) != -1)
         store_pageinfo(newfd);
     return ret;
@@ -269,6 +309,8 @@ int close(int fd)
     assert(_original_close != NULL);
 
     free_unclaimed_pages(fd);
+
+    DEBUG("close(%d)\n", fd);
     return _original_close(fd);
 }
 
@@ -280,6 +322,8 @@ FILE *fopen(const char *path, const char *mode)
     if(!_original_fopen)
        _original_fopen = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");
     assert(_original_fopen != NULL);
+
+    DEBUG("fopen(path=%s, mode=%s)\n", path, mode);
 
     if((fp = _original_fopen(path, mode)) != NULL)
         if((fd = fileno(fp)) != -1)
@@ -297,6 +341,8 @@ FILE *fopen64(const char *path, const char *mode)
     if(!_original_fopen64)
         _original_fopen64 = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen64");
     assert(_original_fopen64 != NULL);
+
+    DEBUG("fopen64(path=%s, mode=%s)\n", path, mode);
 
     if((fp = _original_fopen64(path, mode)) != NULL)
         if((fd = fileno(fp)) != -1)
@@ -356,23 +402,42 @@ static void store_pageinfo(int fd)
         fds[i].size = 0;
         fds[i].nr_pages = 0;
         fds[i].info = NULL;
+        DEBUG("store_pageinfo(fd=%d): file size is ZERO, slot=%d\n", fd, i);
         goto restoresigset;
     }
+
+    DEBUG("store_pageinfo(fd=%d): st.st_size=%ld\n", fd, st.st_size);
 
     fds[i].size = st.st_size;
     pages = fds[i].nr_pages = (st.st_size + PAGESIZE - 1) / PAGESIZE;
     pageinfo = calloc(sizeof(*pageinfo), pages);
-    if(!pageinfo)
+    if(!pageinfo) {
+        DEBUG("calloc failed: size=%d on fd=%d slot=%d\n", pages, fd, i);
         goto cleanup;
+    }
 
     file = mmap(NULL, st.st_size, PROT_NONE, MAP_SHARED, fd, 0);
-    if(file == MAP_FAILED)
+    if(file == MAP_FAILED) {
+        DEBUG("store_pageinfo(fd=%d): mmap failed, errno:%d, %s\n",
+            fd, errno, strerror(errno));
         goto cleanup;
+    }
+
     if(mincore(file, st.st_size, pageinfo) == -1)
         goto cleanup;
     fds[i].info = pageinfo;
 
     munmap(file, st.st_size);
+
+    if(debugfp != NULL) {
+        int j, n = 0;
+        for(j = 0; j < pages; j++)
+            if(pageinfo[j] & 1)
+                n++;
+        DEBUG("store_pageinfo(fd=%d): pages in cache: %d/%d (%.1f%%)  [filesize=%.1fK, "
+                "pagesize=%dK]\n", fd, n, pages, 100.0 * n / pages,
+                 1.0 * st.st_size / 1024, (int) PAGESIZE / 1024);
+    }
     goto restoresigset;
 
     cleanup:

@@ -63,6 +63,9 @@ It looks like this:
 
 Also, you can use `vmstat 1` to view cache statistics.
 
+For debugging purposes, you can specify a filename that `nocache` should log
+debugging messages to via the `-D` command line switch, e.g. use `nocache
+-D /tmp/nocache.log …`.
 
 Example run
 -----------
