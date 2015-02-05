@@ -184,10 +184,11 @@ int open(const char *pathname, int flags, mode_t mode)
         _original_open = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "open");
     assert(_original_open != NULL);
 
-    DEBUG("open(pathname=%s, flags=0x%x, mode=0%o)\n", pathname, flags, mode);
-
-    if((fd = _original_open(pathname, flags, mode)) != -1)
+    if((fd = _original_open(pathname, flags, mode)) != -1) {
+        DEBUG("open(pathname=%s, flags=0x%x, mode=0%o) = %d\n",
+            pathname, flags, mode, fd);
         store_pageinfo(fd);
+    }
     return fd;
 }
 
