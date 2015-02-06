@@ -17,5 +17,5 @@ esac
 done
 shift $((OPTIND-1))
 
-echo "[nocache] DEBUG: Executing: $@" >&$debugfd
+[ ! -z "$debugfd" ] && echo "[nocache] DEBUG: Executing: $@" >&$debugfd
 exec "$@"
