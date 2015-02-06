@@ -138,8 +138,6 @@ static void init_debugging(void)
         return;
     debugfd = atoi(s);
     debugfp = fdopen(debugfd, "a");
-    if(!debugfp)
-        return;
 }
 
 /* duplicate stdout if it is a regular file. We will use this later to
