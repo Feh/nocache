@@ -172,6 +172,7 @@ static void destroy(void)
         pthread_mutex_lock(&lock);
     }
     pthread_mutex_unlock(&lock);
+    free(fds);
 }
 
 int open(const char *pathname, int flags, mode_t mode)
