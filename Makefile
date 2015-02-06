@@ -10,7 +10,7 @@ bindir  = $(DESTDIR)$(PREFIX)$(BINDIR)
 libdir  = $(DESTDIR)$(PREFIX)$(LIBDIR)
 
 CACHE_BINS=cachedel cachestats
-NOCACHE_BINS=nocache.o fcntl_helpers.o
+NOCACHE_BINS=nocache.o fcntl_helpers.o pageinfo.o
 MANPAGES=$(wildcard man/*.1)
 
 CC = gcc

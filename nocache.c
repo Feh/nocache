@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <signal.h>
 
+#include "pageinfo.h"
 #include "fcntl_helpers.h"
 
 static void init(void) __attribute__((constructor));
@@ -54,14 +55,8 @@ FILE *(*_original_fopen64)(const char *path, const char *mode);
 int (*_original_fclose)(FILE *fp);
 
 
-struct fadv_info {
-    int fd;
-    off_t size;
-    unsigned int nr_pages;
-    unsigned char *info;
-};
 static int max_fds;
-static struct fadv_info *fds;
+static struct file_pageinfo *fds;
 static size_t PAGESIZE;
 static pthread_mutex_t lock; /* protects access to fds[] */
 
@@ -87,9 +82,8 @@ static void init(void)
     struct rlimit rlim;
 
     getrlimit(RLIMIT_NOFILE, &rlim);
-    max_fds=(int) rlim.rlim_max;
-
-    fds=(struct fadv_info *) malloc(max_fds * sizeof(struct fadv_info));
+    max_fds = rlim.rlim_max;
+    fds = malloc(max_fds * sizeof(*fds));
 
     assert(fds != NULL);
 
@@ -370,17 +364,10 @@ int fclose(FILE *fp)
 static void store_pageinfo(int fd)
 {
     int i;
-    int pages;
-    struct stat st;
-    void *file = NULL;
-    unsigned char *pageinfo = NULL;
     sigset_t mask, old_mask;
 
     sigfillset(&mask);
     sigprocmask(SIG_BLOCK, &mask, &old_mask);
-
-    if(fstat(fd, &st) == -1 || !S_ISREG(st.st_mode))
-        goto restoresigset;
 
     /* Hint we'll be using this file only once;
      * the Linux kernel will currently ignore this */
@@ -397,56 +384,17 @@ static void store_pageinfo(int fd)
     fds[i].fd = fd;
     pthread_mutex_unlock(&lock);
 
-    /* If size is 0, mmap() will fail. We'll keep the fd stored, anyway, to
-     * make sure the newly written pages will be freed (so no cleanup!). */
-    if(st.st_size == 0) {
-        fds[i].size = 0;
-        fds[i].nr_pages = 0;
-        fds[i].info = NULL;
-        DEBUG("store_pageinfo(fd=%d): file size is ZERO, slot=%d\n", fd, i);
-        goto restoresigset;
-    }
-
-    DEBUG("store_pageinfo(fd=%d): st.st_size=%ld\n", fd, st.st_size);
-
-    fds[i].size = st.st_size;
-    pages = fds[i].nr_pages = (st.st_size + PAGESIZE - 1) / PAGESIZE;
-    pageinfo = calloc(sizeof(*pageinfo), pages);
-    if(!pageinfo) {
-        DEBUG("calloc failed: size=%d on fd=%d slot=%d\n", pages, fd, i);
+    if(!fd_get_pageinfo(fd, &fds[i]))
         goto cleanup;
-    }
 
-    file = mmap(NULL, st.st_size, PROT_NONE, MAP_SHARED, fd, 0);
-    if(file == MAP_FAILED) {
-        DEBUG("store_pageinfo(fd=%d): mmap failed, errno:%d, %s\n",
-            fd, errno, strerror(errno));
-        goto cleanup;
-    }
-
-    if(mincore(file, st.st_size, pageinfo) == -1)
-        goto cleanup;
-    fds[i].info = pageinfo;
-
-    munmap(file, st.st_size);
-
-    if(debugfp != NULL) {
-        int j, n = 0;
-        for(j = 0; j < pages; j++)
-            if(pageinfo[j] & 1)
-                n++;
-        DEBUG("store_pageinfo(fd=%d): pages in cache: %d/%d (%.1f%%)  [filesize=%.1fK, "
-                "pagesize=%dK]\n", fd, n, pages, 100.0 * n / pages,
-                 1.0 * st.st_size / 1024, (int) PAGESIZE / 1024);
-    }
+    DEBUG("store_pageinfo(fd=%d): pages in cache: %zd/%zd (%.1f%%)  [filesize=%.1fK, "
+            "pagesize=%dK]\n", fd, fds[i].nr_pages_cached, fds[i].nr_pages,
+             fds[i].nr_pages == 0 ? 0 : (100.0 * fds[i].nr_pages_cached / fds[i].nr_pages),
+             1.0 * fds[i].size / 1024, (int) PAGESIZE / 1024);
     goto restoresigset;
 
     cleanup:
     fds[i].fd = -1;
-    if(pageinfo)
-        free(pageinfo);
-    if(file)
-        munmap(file, st.st_size);
 
     restoresigset:
     sigprocmask(SIG_SETMASK, &old_mask, NULL);
@@ -456,8 +404,8 @@ static void store_pageinfo(int fd)
 
 static void free_unclaimed_pages(int fd)
 {
-    int i, j;
-    int start;
+    int i;
+    struct stat st;
     sigset_t mask, old_mask;
 
     if(fd == -1)
@@ -476,25 +424,23 @@ static void free_unclaimed_pages(int fd)
 
     sync_if_writable(fd);
 
-    start = j = 0;
-    while(j < fds[i].nr_pages) {
-        if(fds[i].info[j] & 1) {
-            if(start < j) {
-                DEBUG("fadv_dontneed(fd=%d, frompage=%d, topage=%d)\n", fd, start, j);
-                fadv_dontneed(fd, start*PAGESIZE, (j - start) * PAGESIZE, nr_fadvise);
-            }
-            start = j + 1;
-        }
-        j++;
+    if(fstat(fd, &st) == -1)
+        goto restoresigset;
+
+    struct byterange *br;
+    for(br = fds[i].unmapped; br; br = br->next) {
+        DEBUG("fadv_dontneed(fd=%d, from=%zd, len=%zd)\n", fd, br->pos, br->len);
+        fadv_dontneed(fd, br->pos, br->len, nr_fadvise);
     }
 
-    /* forget written contents that go beyond previous file size */
-    start = start < j ? start*PAGESIZE : fds[i].size;
-    DEBUG("fadv_dontneed(fd=%d, rest of pages, starting at byte %d / page %zd)\n",
-        fd, start, start/PAGESIZE);
-    fadv_dontneed(fd, start, 0, nr_fadvise);
+    /* Has the file grown bigger? */
+    if(st.st_size > fds[i].size) {
+        DEBUG("fadv_dontneed(fd=%d, from=%zd, len=0 [till new end, file has grown])\n",
+                fd, fds[i].size);
+        fadv_dontneed(fd, fds[i].size, 0, nr_fadvise);
+    }
 
-    free(fds[i].info);
+    free_br_list(&fds[i].unmapped);
     fds[i].fd = -1;
 
     restoresigset:
