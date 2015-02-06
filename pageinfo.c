@@ -94,9 +94,11 @@ struct file_pageinfo *fd_get_pageinfo(int fd, struct file_pageinfo *pi)
     free(page_vec);
 
     return pi;
+
 cleanup:
     if(file)
         munmap(file, st.st_size);
+    free(page_vec);
     return NULL;
 }
 
