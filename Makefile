@@ -26,10 +26,10 @@ $(CACHE_BINS):
 $(NOCACHE_BINS): $(NOCACHE_BINS:.o=.c)
 	$(COMPILE) -fPIC -c -o $@ $(@:.o=.c)
 
-nocache.global:
+nocache.global: nocache.in
 	sed 's!##libdir##!$(subst $(DESTDIR),,$(libdir))!' <nocache.in >$@
 
-nocache:
+nocache: nocache.in
 	sed 's!##libdir##!$$(dirname "$$0")!' <nocache.in >$@
 	chmod a+x $@
 
