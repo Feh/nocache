@@ -87,9 +87,11 @@ struct file_pageinfo *fd_get_pageinfo(int fd, struct file_pageinfo *pi)
         start = i + 1;
     }
     /* Leftover interval: clear until end of file */
-    if(start < pi->nr_pages)
+    if(start < pi->nr_pages) {
         insert_into_br_list(pi, &br, start * PAGESIZE,
                 pi->size - start * PAGESIZE);
+        pi->nr_pages_cached -= pi->nr_pages - start;
+    }
 
     free(page_vec);
 
