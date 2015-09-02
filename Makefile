@@ -23,7 +23,7 @@ all: $(CACHE_BINS) nocache.so nocache
 $(CACHE_BINS):
 	$(COMPILE) -o $@ $@.c
 
-$(NOCACHE_BINS):
+$(NOCACHE_BINS): $(NOCACHE_BINS:.o=.c)
 	$(COMPILE) -fPIC -c -o $@ $(@:.o=.c)
 
 nocache.global:
