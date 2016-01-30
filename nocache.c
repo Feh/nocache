@@ -38,7 +38,6 @@ int dup(int oldfd);
 int dup2(int oldfd, int newfd);
 int close(int fd);
 FILE *fopen(const char *path, const char *mode);
-FILE *fopen64(const char *path, const char *mode);
 int fclose(FILE *fp);
 
 int (*_original_open)(const char *pathname, int flags, mode_t mode);
@@ -51,7 +50,6 @@ int (*_original_dup)(int fd);
 int (*_original_dup2)(int newfd, int oldfd);
 int (*_original_close)(int fd);
 FILE *(*_original_fopen)(const char *path, const char *mode);
-FILE *(*_original_fopen64)(const char *path, const char *mode);
 int (*_original_fclose)(FILE *fp);
 
 
@@ -97,7 +95,6 @@ static void init(void)
     _original_dup2 = (int (*)(int, int)) dlsym(RTLD_NEXT, "dup2");
     _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
     _original_fopen = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen");
-    _original_fopen64 = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen64");
     _original_fclose = (int (*)(FILE *)) dlsym(RTLD_NEXT, "fclose");
 
     if ((error = dlerror()) != NULL)  {
@@ -320,25 +317,6 @@ FILE *fopen(const char *path, const char *mode)
     DEBUG("fopen(path=%s, mode=%s)\n", path, mode);
 
     if((fp = _original_fopen(path, mode)) != NULL)
-        if((fd = fileno(fp)) != -1)
-            store_pageinfo(fd);
-
-    return fp;
-}
-
-FILE *fopen64(const char *path, const char *mode)
-{
-    int fd;
-    FILE *fp;
-    fp = NULL;
-
-    if(!_original_fopen64)
-        _original_fopen64 = (FILE *(*)(const char *, const char *)) dlsym(RTLD_NEXT, "fopen64");
-    assert(_original_fopen64 != NULL);
-
-    DEBUG("fopen64(path=%s, mode=%s)\n", path, mode);
-
-    if((fp = _original_fopen64(path, mode)) != NULL)
         if((fd = fileno(fp)) != -1)
             store_pageinfo(fd);
 
