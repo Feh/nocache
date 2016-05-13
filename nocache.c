@@ -19,7 +19,7 @@
 
 static void init(void) __attribute__((constructor));
 static void destroy(void) __attribute__((destructor));
-static void init_mutex(void);
+static void init_mutexes(void);
 static void init_debugging(void);
 static void handle_stdout(void);
 
@@ -55,10 +55,15 @@ FILE *(*_original_fopen64)(const char *path, const char *mode);
 int (*_original_fclose)(FILE *fp);
 
 
+/* Info about a file descriptor 'fd' is stored in fds[fd]. Before accessing an
+ * element, callers MUST both check fds_lock != NULL and then acquire
+ * fds_lock[fd] while holding the fds_iter_lock. While any mutex in fds_lock is
+ * held, fds_lock will not be freed and set to NULL. */
 static int max_fds;
 static struct file_pageinfo *fds;
+static pthread_mutex_t *fds_lock;
+static pthread_mutex_t fds_iter_lock;
 static size_t PAGESIZE;
-static pthread_mutex_t lock; /* protects access to fds[] */
 
 static char *env_nr_fadvise = "NOCACHE_NR_FADVISE";
 static int nr_fadvise;
@@ -83,8 +88,8 @@ static void init(void)
 
     getrlimit(RLIMIT_NOFILE, &rlim);
     max_fds = rlim.rlim_max;
+    init_mutexes();
     fds = malloc(max_fds * sizeof(*fds));
-
     assert(fds != NULL);
 
     _original_open = (int (*)(const char *, int, mode_t)) dlsym(RTLD_NEXT, "open");
@@ -111,18 +116,30 @@ static void init(void)
         nr_fadvise = 1;
 
     PAGESIZE = getpagesize();
-    for(i = 0; i < max_fds; i++)
+    pthread_mutex_lock(&fds_iter_lock);
+    for(i = 0; i < max_fds; i++) {
+        pthread_mutex_lock(&fds_lock[i]);
         fds[i].fd = -1;
-    init_mutex();
+        pthread_mutex_unlock(&fds_lock[i]);
+    }
+    pthread_mutex_unlock(&fds_iter_lock);
     init_debugging();
     handle_stdout();
 }
 
-static void init_mutex(void)
+static void init_mutexes(void)
 {
-    pthread_mutex_init(&lock, NULL);
+    int i;
+    pthread_mutex_init(&fds_iter_lock, NULL);
+    pthread_mutex_lock(&fds_iter_lock);
+    fds_lock = malloc(max_fds * sizeof(*fds_lock));
+    assert(fds_lock != NULL);
+    for(i = 0; i < max_fds; i++) {
+        pthread_mutex_init(&fds_lock[i], NULL);
+    }
+    pthread_mutex_unlock(&fds_iter_lock);
     /* make sure to re-initialize mutex if forked */
-    pthread_atfork(NULL, NULL, init_mutex);
+    pthread_atfork(NULL, NULL, init_mutexes);
 }
 
 static void init_debugging(void)
@@ -155,18 +172,25 @@ static void handle_stdout(void)
 static void destroy(void)
 {
     int i;
-    pthread_mutex_lock(&lock);
+
     for(i = 0; i < max_fds; i++) {
-        if(fds[i].fd == -1)
-            continue; /* slot is empty */
-        if(!valid_fd(fds[i].fd))
-            continue;
-        pthread_mutex_unlock(&lock);
-        free_unclaimed_pages(fds[i].fd);
-        pthread_mutex_lock(&lock);
+        free_unclaimed_pages(i);
     }
-    pthread_mutex_unlock(&lock);
+
+    pthread_mutex_lock(&fds_iter_lock);
+    if(fds_lock == NULL) {
+        pthread_mutex_unlock(&fds_iter_lock);
+        return;
+    }
+    for(i = 0; i < max_fds; i++) {
+        pthread_mutex_lock(&fds_lock[i]);
+    }
+    /* We have acquired all locks. It is now safe to delete and free the list. */
     free(fds);
+    fds = NULL;
+    free(fds_lock);
+    fds_lock = NULL;
+    pthread_mutex_unlock(&fds_iter_lock);
 }
 
 int open(const char *pathname, int flags, mode_t mode)
@@ -362,40 +386,43 @@ int fclose(FILE *fp)
 
 static void store_pageinfo(int fd)
 {
-    int i;
     sigset_t mask, old_mask;
+
+    if(fd >= max_fds)
+        return;
+
+    /* We might know something about this fd already, so assume we have missed
+     * it being closed. */
+    free_unclaimed_pages(fd);
 
     sigfillset(&mask);
     sigprocmask(SIG_BLOCK, &mask, &old_mask);
+
+    pthread_mutex_lock(&fds_iter_lock);
+    if(fds_lock == NULL) {
+        pthread_mutex_unlock(&fds_iter_lock);
+        return;
+    }
+    pthread_mutex_lock(&fds_lock[fd]);
+    pthread_mutex_unlock(&fds_iter_lock);
 
     /* Hint we'll be using this file only once;
      * the Linux kernel will currently ignore this */
     fadv_noreuse(fd, 0, 0);
 
-    /* check if there's space to store the info */
-    pthread_mutex_lock(&lock);
-    for(i = 0; i < max_fds && fds[i].fd != -1; i++)
-        ;
-    if(i == max_fds) {
-        pthread_mutex_unlock(&lock);
-        goto restoresigset; /* no space! */
+    fds[fd].fd = fd;
+    if(!fd_get_pageinfo(fd, &fds[fd])) {
+        fds[fd].fd = -1;
+        goto out;
     }
-    fds[i].fd = fd;
-    pthread_mutex_unlock(&lock);
-
-    if(!fd_get_pageinfo(fd, &fds[i]))
-        goto cleanup;
 
     DEBUG("store_pageinfo(fd=%d): pages in cache: %zd/%zd (%.1f%%)  [filesize=%.1fK, "
-            "pagesize=%dK]\n", fd, fds[i].nr_pages_cached, fds[i].nr_pages,
-             fds[i].nr_pages == 0 ? 0 : (100.0 * fds[i].nr_pages_cached / fds[i].nr_pages),
-             1.0 * fds[i].size / 1024, (int) PAGESIZE / 1024);
-    goto restoresigset;
+            "pagesize=%dK]\n", fd, fds[fd].nr_pages_cached, fds[fd].nr_pages,
+             fds[fd].nr_pages == 0 ? 0 : (100.0 * fds[fd].nr_pages_cached / fds[fd].nr_pages),
+             1.0 * fds[fd].size / 1024, (int) PAGESIZE / 1024);
 
-    cleanup:
-    fds[i].fd = -1;
-
-    restoresigset:
+    out:
+    pthread_mutex_unlock(&fds_lock[fd]);
     sigprocmask(SIG_SETMASK, &old_mask, NULL);
 
     return;
@@ -403,45 +430,50 @@ static void store_pageinfo(int fd)
 
 static void free_unclaimed_pages(int fd)
 {
-    int i;
     struct stat st;
     sigset_t mask, old_mask;
 
-    if(fd == -1)
+    if(fd == -1 || fd >= max_fds)
         return;
 
     sigfillset(&mask);
     sigprocmask(SIG_BLOCK, &mask, &old_mask);
 
-    pthread_mutex_lock(&lock);
-    for(i = 0; i < max_fds; i++)
-        if(fds[i].fd == fd)
-            break;
-    pthread_mutex_unlock(&lock);
-    if(i == max_fds)
-        goto restoresigset; /* not found */
+    pthread_mutex_lock(&fds_iter_lock);
+    if(fds_lock == NULL) {
+        pthread_mutex_unlock(&fds_iter_lock);
+        return;
+    }
+    pthread_mutex_lock(&fds_lock[fd]);
+    pthread_mutex_unlock(&fds_iter_lock);
+
+    if(fds[fd].fd == -1)
+        goto out;
 
     sync_if_writable(fd);
 
     if(fstat(fd, &st) == -1)
-        goto restoresigset;
+        goto out;
 
     struct byterange *br;
-    for(br = fds[i].unmapped; br; br = br->next) {
+    for(br = fds[fd].unmapped; br; br = br->next) {
         DEBUG("fadv_dontneed(fd=%d, from=%zd, len=%zd)\n", fd, br->pos, br->len);
         fadv_dontneed(fd, br->pos, br->len, nr_fadvise);
     }
 
     /* Has the file grown bigger? */
-    if(st.st_size > fds[i].size) {
+    if(st.st_size > fds[fd].size) {
         DEBUG("fadv_dontneed(fd=%d, from=%lld, len=0 [till new end, file has grown])\n",
-              fd, (long long)fds[i].size);
-        fadv_dontneed(fd, fds[i].size, 0, nr_fadvise);
+              fd, (long long)fds[fd].size);
+        fadv_dontneed(fd, fds[fd].size, 0, nr_fadvise);
     }
 
-    free_br_list(&fds[i].unmapped);
-    fds[i].fd = -1;
+    free_br_list(&fds[fd].unmapped);
+    fds[fd].fd = -1;
 
-    restoresigset:
+    out:
+    pthread_mutex_unlock(&fds_lock[fd]);
     sigprocmask(SIG_SETMASK, &old_mask, NULL);
 }
+
+/* vim:set et sw=4 ts=4: */

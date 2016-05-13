@@ -133,4 +133,7 @@ void free_br_list(struct byterange **br)
         (*br) = tmp->next;
         free(tmp);
     }
+    *br = NULL;
 }
+
+/* vim:set et sw=4 ts=4: */
