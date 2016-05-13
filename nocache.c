@@ -434,8 +434,8 @@ static void free_unclaimed_pages(int fd)
 
     /* Has the file grown bigger? */
     if(st.st_size > fds[i].size) {
-        DEBUG("fadv_dontneed(fd=%d, from=%zd, len=0 [till new end, file has grown])\n",
-                fd, fds[i].size);
+        DEBUG("fadv_dontneed(fd=%d, from=%lld, len=0 [till new end, file has grown])\n",
+              fd, (long long)fds[i].size);
         fadv_dontneed(fd, fds[i].size, 0, nr_fadvise);
     }
 

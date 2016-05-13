@@ -42,8 +42,8 @@ struct file_pageinfo *fd_get_pageinfo(int fd, struct file_pageinfo *pi)
         return NULL;
     pi->size = st.st_size;
     pi->nr_pages = (st.st_size + PAGESIZE - 1) / PAGESIZE;
-    DEBUG("fd_get_pageinfo(fd=%d): st.st_size=%ld, nr_pages=%ld\n",
-            fd, st.st_size, pi->nr_pages);
+    DEBUG("fd_get_pageinfo(fd=%d): st.st_size=%lld, nr_pages=%lld\n",
+          fd, (long long)st.st_size, (long long)pi->nr_pages);
 
     /* If size is 0, mmap() will fail. We'll keep the fd stored, anyway, to
      * make sure the newly written pages will be freed on close(). */
