@@ -137,7 +137,7 @@ script:
         echo $ppid > /sys/fs/cgroup/blkio/backup/tasks ;
     '
 
-More info: https://www.kernel.org/doc/Documentation/cgroups/memory.txt
+More info: https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
 
 Acknowledgements
 ----------------
