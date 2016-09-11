@@ -26,7 +26,7 @@ pages and the `nocache`, `cachestats` and `cachedel` commands
 under `/usr/local`. You can specify an alternate prefix by using
 `make install PREFIX=/usr`.
 
-Debian packages are available, see http://packages.qa.debian.org/n/nocache.html.
+Debian packages are available, see https://packages.qa.debian.org/n/nocache.html.
 
 Please note that `nocache` will only build on a system that has
 support for the `posix_fadvise` syscall and exposes it, too. This
