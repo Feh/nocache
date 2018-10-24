@@ -2,9 +2,10 @@
 
 export LD_PRELOAD="##libdir##/nocache.so $LD_PRELOAD"
 
-while getopts "n:D:" opt; do
+while getopts "n:D:f" opt; do
 case "$opt" in
     n) export NOCACHE_NR_FADVISE="$OPTARG" ;;
+    f) export NOCACHE_FLUSHALL=1 ;;
     D) exec {debugfd}>"$OPTARG"
        export NOCACHE_DEBUGFD="$debugfd"
        ;;

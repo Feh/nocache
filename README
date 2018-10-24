@@ -120,6 +120,19 @@ until it works, e.g.:
 
     $ env NOCACHE_NR_FADVISE=2 make test
 
+
+One could also consider that the fact pages are kept mean the kernel
+considers they are hot, and decide the overhead of allocating one byte
+per page for mincore and the actual mincore calls are not worth it when
+the kernel actually does keep some pages when it wants to.
+
+In this case you can either run `nocache` with `-f` or set the
+`NOCACHE_FLUSHALL` environment variable to 1, e.g.:
+
+    $ nocache -f cat ~/file.mp3
+    $ env NOCACHE_FLUSHALL=1 make test
+
+
 Alternate Approaches
 --------------------
 

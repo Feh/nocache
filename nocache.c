@@ -72,6 +72,9 @@ static char *env_debugfd = "NOCACHE_DEBUGFD";
 int debugfd = -1;
 FILE *debugfp;
 
+static char *env_flushall = "NOCACHE_FLUSHALL";
+static char flushall;
+
 #define DEBUG(...) \
     do { \
         if(debugfp != NULL) { \
@@ -114,6 +117,11 @@ static void init(void)
         nr_fadvise = atoi(s);
     if(nr_fadvise <= 0)
         nr_fadvise = 1;
+
+    if((s = getenv(env_flushall)) != NULL)
+        flushall = atoi(s);
+    if(flushall <= 0)
+        flushall = 0;
 
     PAGESIZE = getpagesize();
     pthread_mutex_lock(&fds_iter_lock);
@@ -411,6 +419,9 @@ static void store_pageinfo(int fd)
     fadv_noreuse(fd, 0, 0);
 
     fds[fd].fd = fd;
+    if(flushall)
+        goto out;
+
     if(!fd_get_pageinfo(fd, &fds[fd])) {
         fds[fd].fd = -1;
         goto out;
@@ -451,6 +462,13 @@ static void free_unclaimed_pages(int fd)
         goto out;
 
     sync_if_writable(fd);
+
+    if(flushall) {
+        DEBUG("fadv_dontneed(fd=%d, from=0, len=0 [till end])\n", fd);
+        fadv_dontneed(fd, 0, 0, nr_fadvise);
+        fds[fd].fd = -1;
+        goto out;
+    }
 
     if(fstat(fd, &st) == -1)
         goto out;
