@@ -91,7 +91,11 @@ static void init(void)
 
     getrlimit(RLIMIT_NOFILE, &rlim);
     max_fds = rlim.rlim_max;
+
     init_mutexes();
+    /* make sure to re-initialize mutex if forked */
+    pthread_atfork(NULL, NULL, init_mutexes);
+
     fds = malloc(max_fds * sizeof(*fds));
     assert(fds != NULL);
 
@@ -146,8 +150,6 @@ static void init_mutexes(void)
         pthread_mutex_init(&fds_lock[i], NULL);
     }
     pthread_mutex_unlock(&fds_iter_lock);
-    /* make sure to re-initialize mutex if forked */
-    pthread_atfork(NULL, NULL, init_mutexes);
 }
 
 static void init_debugging(void)
