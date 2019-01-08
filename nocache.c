@@ -89,6 +89,16 @@ static void init(void)
     char *error;
     struct rlimit rlim;
 
+    if((s = getenv(env_nr_fadvise)) != NULL)
+        nr_fadvise = atoi(s);
+    if(nr_fadvise <= 0)
+        nr_fadvise = 1;
+
+    if((s = getenv(env_flushall)) != NULL)
+        flushall = atoi(s);
+    if(flushall <= 0)
+        flushall = 0;
+
     getrlimit(RLIMIT_NOFILE, &rlim);
     max_fds = rlim.rlim_max;
 
@@ -116,16 +126,6 @@ static void init(void)
         fprintf(stderr, "%s\n", error);
         exit(EXIT_FAILURE);
     }
-
-    if((s = getenv(env_nr_fadvise)) != NULL)
-        nr_fadvise = atoi(s);
-    if(nr_fadvise <= 0)
-        nr_fadvise = 1;
-
-    if((s = getenv(env_flushall)) != NULL)
-        flushall = atoi(s);
-    if(flushall <= 0)
-        flushall = 0;
 
     PAGESIZE = getpagesize();
     pthread_mutex_lock(&fds_iter_lock);
