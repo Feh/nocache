@@ -75,6 +75,9 @@ FILE *debugfp;
 static char *env_flushall = "NOCACHE_FLUSHALL";
 static char flushall;
 
+static char *env_max_fds = "NOCACHE_MAX_FDS";
+static rlim_t max_fd_limit = 1 << 20;
+
 #define DEBUG(...) \
     do { \
         if(debugfp != NULL) { \
@@ -89,8 +92,26 @@ static void init(void)
     char *error;
     struct rlimit rlim;
 
+    if((s = getenv(env_nr_fadvise)) != NULL)
+        nr_fadvise = atoi(s);
+    if(nr_fadvise <= 0)
+        nr_fadvise = 1;
+
+    if((s = getenv(env_flushall)) != NULL)
+        flushall = atoi(s);
+    if(flushall <= 0)
+        flushall = 0;
+
+    if((s = getenv(env_max_fds)) != NULL)
+        max_fd_limit = atoll(s);
+
     getrlimit(RLIMIT_NOFILE, &rlim);
     max_fds = rlim.rlim_max;
+    if(max_fds > max_fd_limit)
+        max_fds = max_fd_limit;
+
+    if(max_fds == 0)
+        return;  /* There's nothing to do for us here. */
 
     init_mutexes();
     /* make sure to re-initialize mutex if forked */
@@ -116,16 +137,6 @@ static void init(void)
         fprintf(stderr, "%s\n", error);
         exit(EXIT_FAILURE);
     }
-
-    if((s = getenv(env_nr_fadvise)) != NULL)
-        nr_fadvise = atoi(s);
-    if(nr_fadvise <= 0)
-        nr_fadvise = 1;
-
-    if((s = getenv(env_flushall)) != NULL)
-        flushall = atoi(s);
-    if(flushall <= 0)
-        flushall = 0;
 
     PAGESIZE = getpagesize();
     pthread_mutex_lock(&fds_iter_lock);
@@ -398,7 +409,7 @@ static void store_pageinfo(int fd)
 {
     sigset_t mask, old_mask;
 
-    if(fd >= max_fds)
+    if(fd >= max_fds - 1)
         return;
 
     /* We might know something about this fd already, so assume we have missed
