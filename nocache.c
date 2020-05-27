@@ -409,7 +409,7 @@ static void store_pageinfo(int fd)
 {
     sigset_t mask, old_mask;
 
-    if(fd >= max_fds - 1)
+    if(fd >= max_fds)
         return;
 
     /* We might know something about this fd already, so assume we have missed
