@@ -132,11 +132,12 @@ In this case you can either run `nocache` with `-f` or set the
     $ nocache -f cat ~/file.mp3
     $ env NOCACHE_FLUSHALL=1 make test
 
-By default `nocache` will only keep track of file descriptors less than 1
-million that are opened by your application, in order to bound its memory
+By default `nocache` will only keep track of file descriptors less than `2^20`
+that are opened by your application, in order to bound its memory
 consumption. If you want to change this threshold, you can supply the
 environment variable `NOCACHE_MAX_FDS` and set it to a higher (or lower) value.
-
+It should specify a value one greater than the maximum file descriptor that
+will be handled by `nocache`.
 
 Alternate Approaches
 --------------------
