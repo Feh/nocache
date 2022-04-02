@@ -1,3 +1,31 @@
+Stop and read before you blindly try this tool
+----------------------------------------------
+
+What is this tool good for:
+
+* Learn about how the Linux page cache works, and what syscalls exist to
+  interfere with its normal operation.
+* Learn what hacks are necessary to intercept syscalls via their libc wrappers.
+
+What this tool is **not** good for:
+
+* Controlling how your page cache is used
+  * Why do you think some random tool you found on GitHub can do better than
+    the Linux Kernel?
+* Defending against cache thrashing
+  * Use cgroups to bound the amount of memory a process has. See below or
+    search the internet, this is widely known, works reliably, and does not
+    introduce performance penalties or potentially dangerous behavior like this
+    tool does.
+* Making a binary run faster
+  * `nocache` intercepts a bunch of syscalls and does lots of speculative work;
+    it will slow down your binary.
+
+So then why does this tool exist?
+
+* It was written in 2012, when cgroups, containerization etc. were all new
+  things. A decade+ on, they aren’t any more.
+
 nocache - minimize filesystem caching effects
 ---------------------------------------------
 
@@ -9,10 +37,6 @@ pages (ie., 4K-blocks of the file) were already in file system cache
 when the file was opened, these will not be marked as "don't need",
 because other applications might need that, although they are not
 actively used (think: hot standby).
-
-Use case: backup processes that should not interfere with the present
-state of the cache.
-
 
 Installation and Usage
 ----------------------
