@@ -19,5 +19,13 @@ when the file was opened, these will not be marked as "don't need",
 because other applications might need that, although they are not
 actively used (think: hot standby).
 
-Use case: backup processes that should not interfere with the present
-state of the cache.
+.SH ALTERNATIVE: HOW TO USE CGROUPS TO RESTRICT CACHE USE
+If your use case is a  backup processes that should not interfere with the
+present state of the cache too much, consider using cgroups instead. They're
+much cleaner and carry less overhead than this tool.
+
+For example, if your system uses systemd, you can do:
+
+\fBsystemd-run --scope --property=MemoryLimit=500M\fR -- \fIbackup command\fR
+
+For more info, see the README on https://github.com/Feh/nocache
