@@ -1,5 +1,4 @@
-Stop and read before you blindly try this tool
-----------------------------------------------
+# Stop and read before you blindly try this tool
 
 What is this tool good for:
 
@@ -26,8 +25,7 @@ So then why does this tool exist?
 * It was written in 2012, when cgroups, containerization etc. were all new
   things. A decade+ on, they aren’t any more.
 
-nocache - minimize filesystem caching effects
----------------------------------------------
+# nocache - minimize filesystem caching effects
 
 The `nocache` tool tries to minimize the effect an application has on
 the Linux file system cache. This is done by intercepting the `open`
@@ -38,12 +36,13 @@ when the file was opened, these will not be marked as "don't need",
 because other applications might need that, although they are not
 actively used (think: hot standby).
 
-Installation and Usage
-----------------------
+# Installation and Usage
 
 Just type `make`. Then, prepend `./nocache` to your command:
 
-    ./nocache cp -a ~/ /mnt/backup/home-$(hostname)
+```sh
+./nocache cp -a ~/ /mnt/backup/home-$(hostname)
+```
 
 The command `make install` will install the shared library, man
 pages and the `nocache`, `cachestats` and `cachedel` commands
@@ -57,9 +56,7 @@ support for the `posix_fadvise` syscall and exposes it, too. This
 should be the case on most modern Unices, but kfreebsd notably has no
 support for this as of now.
 
-
-Testing
--------
+# Testing
 
 For testing purposes, I included two small tools:
 
@@ -76,14 +73,16 @@ For testing purposes, I included two small tools:
 
 It looks like this:
 
-    $ cachestats -v ~/somefile.mp3
-    pages in cache: 85/114 (74.6%)  [filesize=453.5K, pagesize=4K]
-    
-    cache map:
-         0: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
-        32: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
-        64: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x| | | | | | | | | | | | |
-        96: | | | | | | | | | | | | | | | | | |x|
+```
+$ cachestats -v ~/somefile.mp3
+pages in cache: 85/114 (74.6%)  [filesize=453.5K, pagesize=4K]
+
+cache map:
+     0: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+    32: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|
+    64: |x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x| | | | | | | | | | | | |
+    96: | | | | | | | | | | | | | | | | | |x|
+```
 
 Also, you can use `vmstat 1` to view cache statistics.
 
@@ -92,8 +91,7 @@ debugging messages to via the `-D` command line switch, e.g. use `nocache
 -D /tmp/nocache.log …`. Note that for simple testing the file `/dev/stderr`
 might be a good choice.
 
-Example run
------------
+# Example run
 
 Without `nocache`, the file will be fully cached when you copy it
 somewhere:
@@ -113,8 +111,7 @@ With `nocache`, the original caching state will be preserved.
     pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
 
 
-Limitations
------------
+# Limitations
 
 The pre-loaded library tries really hard to catch all system calls
 that open or close a file. This happens by "hijacking" the libc
@@ -163,8 +160,7 @@ environment variable `NOCACHE_MAX_FDS` and set it to a higher (or lower) value.
 It should specify a value one greater than the maximum file descriptor that
 will be handled by `nocache`.
 
-Alternate Approaches
---------------------
+# Alternate Approaches
 
 If you have a fairly recent Linux kernel, you can also try to simply
 cage a cache-intensive application in a memory-limited cgroup. For
@@ -182,8 +178,7 @@ script:
 
 More info: https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
 
-Acknowledgements
-----------------
+# Acknowledgements
 
 Most of the application logic is from Tobias Oetiker's patch for
 `rsync` <http://insights.oetiker.ch/linux/fadvise.html>. Note however,
