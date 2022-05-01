@@ -3,8 +3,9 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <dlfcn.h>
 #include <string.h>
 #include <pthread.h>
@@ -24,7 +25,7 @@ static void init_debugging(void);
 static void handle_stdout(void);
 
 static void store_pageinfo(int fd);
-static void free_unclaimed_pages(int fd);
+static void free_unclaimed_pages(int fd, bool block_signals);
 
 int open(const char *pathname, int flags, mode_t mode);
 int open64(const char *pathname, int flags, mode_t mode);
@@ -195,7 +196,7 @@ static void destroy(void)
     int i;
 
     for(i = 0; i < max_fds; i++) {
-        free_unclaimed_pages(i);
+        free_unclaimed_pages(i, true);
     }
 
     pthread_mutex_lock(&fds_iter_lock);
@@ -328,7 +329,7 @@ int dup2(int oldfd, int newfd)
      * once dup2 is invoked. So now is the last chance to mark the
      * pages as "DONTNEED" */
     if(valid_fd(newfd))
-        free_unclaimed_pages(newfd);
+        free_unclaimed_pages(newfd, true);
 
     if(!_original_dup2)
         _original_dup2 = (int (*)(int, int)) dlsym(RTLD_NEXT, "dup2");
@@ -347,7 +348,7 @@ int close(int fd)
         _original_close = (int (*)(int)) dlsym(RTLD_NEXT, "close");
     assert(_original_close != NULL);
 
-    free_unclaimed_pages(fd);
+    free_unclaimed_pages(fd, true);
 
     DEBUG("close(%d)\n", fd);
     return _original_close(fd);
@@ -397,7 +398,7 @@ int fclose(FILE *fp)
     assert(_original_fclose != NULL);
 
     if(_original_fclose) {
-        free_unclaimed_pages(fileno(fp));
+        free_unclaimed_pages(fileno(fp), true);
         return _original_fclose(fp);
     }
 
@@ -414,7 +415,7 @@ static void store_pageinfo(int fd)
 
     /* We might know something about this fd already, so assume we have missed
      * it being closed. */
-    free_unclaimed_pages(fd);
+    free_unclaimed_pages(fd, true);
 
     sigfillset(&mask);
     sigprocmask(SIG_BLOCK, &mask, &old_mask);
@@ -452,7 +453,7 @@ static void store_pageinfo(int fd)
     return;
 }
 
-static void free_unclaimed_pages(int fd)
+static void free_unclaimed_pages(int fd, bool block_signals)
 {
     struct stat st;
     sigset_t mask, old_mask;
@@ -460,8 +461,10 @@ static void free_unclaimed_pages(int fd)
     if(fd == -1 || fd >= max_fds)
         return;
 
-    sigfillset(&mask);
-    sigprocmask(SIG_BLOCK, &mask, &old_mask);
+    if(block_signals) {
+        sigfillset(&mask);
+        sigprocmask(SIG_BLOCK, &mask, &old_mask);
+    }
 
     pthread_mutex_lock(&fds_iter_lock);
     if(fds_lock == NULL) {
@@ -504,7 +507,8 @@ static void free_unclaimed_pages(int fd)
 
     out:
     pthread_mutex_unlock(&fds_lock[fd]);
-    sigprocmask(SIG_SETMASK, &old_mask, NULL);
+    if(block_signals)
+        sigprocmask(SIG_SETMASK, &old_mask, NULL);
 }
 
 /* vim:set et sw=4 ts=4: */
