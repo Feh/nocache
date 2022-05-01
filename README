@@ -25,6 +25,77 @@ So then why does this tool exist?
 * It was written in 2012, when cgroups, containerization etc. were all new
   things. A decade+ on, they aren’t any more.
 
+## How to run a process and its children in a memory-bounded cgroup
+
+Do this if you e.g. want to run a backup but don’t want your system to slow
+down due to page cache thrashing.
+
+## If you use systemd
+
+If your distro uses `systemd`, this is very easy. Systemd allows to run a
+process (and its subprocesses) in a “scope”, which is a cgroup, and you can
+specify parameters that get translated to cgroup limits.
+
+When I run my backups, I do:
+
+```sh
+$ systemd-run --scope --property=MemoryLimit=500M -- backup command
+```
+
+The effect is that cache space stays bounded by an additional max 500MiB:
+
+Before:
+
+```
+$ free -h
+              total        used        free      shared  buff/cache   available
+Mem:           7.5G        2.4G        1.3G        1.0G        3.7G        3.7G
+Swap:          9.7G         23M        9.7G
+
+```
+
+During (notice how buff/cache only goes up by ~300MiB):
+
+```
+free -h
+              total        used        free      shared  buff/cache   available
+Mem:           7.5G        2.5G        1.0G        1.1G        4.0G        3.6G
+Swap:          9.7G         23M        9.7G
+```
+
+## How does this work?
+
+Use `systemd-cgls` to list the cgroups systemd creates. On my system, the above
+command creates a group called `run-u467.scope` in the `system.slice` parent
+group; you can inspect its memory settings like this:
+
+```
+$ mount | grep cgroup | grep memory
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec latime,memory)
+
+$ cat /sys/fs/cgroup/memory/system.slice/run-u467.scope/memory.limit_in_bytes
+524288000
+```
+
+## The hard way
+
+Install `cgroup-tools` and be prepared to enter your root password to initially
+create cgroups.
+
+```
+sudo env ppid=$$ sh -c '
+    cgcreate -g memory:backup ;
+    echo 500M > /sys/fs/cgroup/memory/backup/memory.limit_in_bytes ;
+    echo $ppid > /sys/fs/cgroup/memory/backup/tasks ;
+'
+```
+
+After entering this, your shell is a member of that cgroup, and any new process
+spawned will belong to that cgroup, too, and inherit the memory limit. The
+cgroups created like this won’t be cleaned up automatically.
+
+More info: https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
+
 # nocache - minimize filesystem caching effects
 
 The `nocache` tool tries to minimize the effect an application has on
@@ -36,7 +107,7 @@ when the file was opened, these will not be marked as "don't need",
 because other applications might need that, although they are not
 actively used (think: hot standby).
 
-# Installation and Usage
+## Installation and Usage
 
 Just type `make`. Then, prepend `./nocache` to your command:
 
@@ -56,7 +127,7 @@ support for the `posix_fadvise` syscall and exposes it, too. This
 should be the case on most modern Unices, but kfreebsd notably has no
 support for this as of now.
 
-# Testing
+## Testing
 
 For testing purposes, I included two small tools:
 
@@ -91,7 +162,7 @@ debugging messages to via the `-D` command line switch, e.g. use `nocache
 -D /tmp/nocache.log …`. Note that for simple testing the file `/dev/stderr`
 might be a good choice.
 
-# Example run
+## Example run
 
 Without `nocache`, the file will be fully cached when you copy it
 somewhere:
@@ -111,7 +182,7 @@ With `nocache`, the original caching state will be preserved.
     pages in cache: 154/1945 (7.9%)  [filesize=7776.2K, pagesize=4K]
 
 
-# Limitations
+## Limitations
 
 The pre-loaded library tries really hard to catch all system calls
 that open or close a file. This happens by "hijacking" the libc
@@ -160,25 +231,7 @@ environment variable `NOCACHE_MAX_FDS` and set it to a higher (or lower) value.
 It should specify a value one greater than the maximum file descriptor that
 will be handled by `nocache`.
 
-# Alternate Approaches
-
-If you have a fairly recent Linux kernel, you can also try to simply
-cage a cache-intensive application in a memory-limited cgroup. For
-example, I use the following command in the startup part of my backup
-script:
-
-    sudo env ppid=$$ sh -c '
-        cgcreate -g memory:backup ;
-        cgcreate -g blkio:backup ;
-        echo 256M > /sys/fs/cgroup/memory/backup/memory.limit_in_bytes ;
-        echo 100 > /sys/fs/cgroup/blkio/backup/blkio.weight ;
-        echo $ppid > /sys/fs/cgroup/memory/backup/tasks ;
-        echo $ppid > /sys/fs/cgroup/blkio/backup/tasks ;
-    '
-
-More info: https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
-
-# Acknowledgements
+## Acknowledgements
 
 Most of the application logic is from Tobias Oetiker's patch for
 `rsync` <http://insights.oetiker.ch/linux/fadvise.html>. Note however,
