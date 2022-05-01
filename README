@@ -30,7 +30,7 @@ So then why does this tool exist?
 Do this if you e.g. want to run a backup but don’t want your system to slow
 down due to page cache thrashing.
 
-## If you use systemd
+### If you use systemd
 
 If your distro uses `systemd`, this is very easy. Systemd allows to run a
 process (and its subprocesses) in a “scope”, which is a cgroup, and you can
@@ -63,7 +63,7 @@ Mem:           7.5G        2.5G        1.0G        1.1G        4.0G        3.6G
 Swap:          9.7G         23M        9.7G
 ```
 
-## How does this work?
+#### How does this work?
 
 Use `systemd-cgls` to list the cgroups systemd creates. On my system, the above
 command creates a group called `run-u467.scope` in the `system.slice` parent
@@ -77,7 +77,7 @@ $ cat /sys/fs/cgroup/memory/system.slice/run-u467.scope/memory.limit_in_bytes
 524288000
 ```
 
-## The hard way
+### The hard way
 
 Install `cgroup-tools` and be prepared to enter your root password to initially
 create cgroups.
