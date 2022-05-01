@@ -194,10 +194,17 @@ static void handle_stdout(void)
 static void destroy(void)
 {
     int i;
+    sigset_t mask, old_mask;
 
+    /* We block signals here, and then call free_unclaimed_pages in a loop. As
+     * max_fds may be high (millions), it's very wasteful to block signals
+     * repeatedly, so it's done once here. */
+    sigfillset(&mask);
+    sigprocmask(SIG_BLOCK, &mask, &old_mask);
     for(i = 0; i < max_fds; i++) {
-        free_unclaimed_pages(i, true);
+        free_unclaimed_pages(i, false);
     }
+    sigprocmask(SIG_SETMASK, &old_mask, NULL);
 
     pthread_mutex_lock(&fds_iter_lock);
     if(fds_lock == NULL) {
