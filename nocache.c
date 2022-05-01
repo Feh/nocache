@@ -64,6 +64,7 @@ static int max_fds;
 static struct file_pageinfo *fds;
 static pthread_mutex_t *fds_lock;
 static pthread_mutex_t fds_iter_lock;
+static int max_fd_observed;  /* guarded by fds_iter_lock */
 static size_t PAGESIZE;
 
 static char *env_nr_fadvise = "NOCACHE_NR_FADVISE";
@@ -146,6 +147,7 @@ static void init(void)
         fds[i].fd = -1;
         pthread_mutex_unlock(&fds_lock[i]);
     }
+    max_fd_observed = 0;
     pthread_mutex_unlock(&fds_iter_lock);
     init_debugging();
     handle_stdout();
@@ -194,14 +196,22 @@ static void handle_stdout(void)
 static void destroy(void)
 {
     int i;
+    int max_fd_to_clear;
     sigset_t mask, old_mask;
+
+    /* There is a race condition here: If something opens files after
+     * extracting max_fd_observed, then it is possible we miss cleaning it up
+     * in the shutdown path. */
+    pthread_mutex_lock(&fds_iter_lock);
+    max_fd_to_clear = max_fd_observed;
+    pthread_mutex_unlock(&fds_iter_lock);
 
     /* We block signals here, and then call free_unclaimed_pages in a loop. As
      * max_fds may be high (millions), it's very wasteful to block signals
      * repeatedly, so it's done once here. */
     sigfillset(&mask);
     sigprocmask(SIG_BLOCK, &mask, &old_mask);
-    for(i = 0; i < max_fds; i++) {
+    for(i = 0; i < max_fd_to_clear; i++) {
         free_unclaimed_pages(i, false);
     }
     sigprocmask(SIG_SETMASK, &old_mask, NULL);
@@ -433,6 +443,8 @@ static void store_pageinfo(int fd)
         return;
     }
     pthread_mutex_lock(&fds_lock[fd]);
+    if(fd > max_fd_observed)
+        max_fd_observed = fd;
     pthread_mutex_unlock(&fds_iter_lock);
 
     /* Hint we'll be using this file only once;
@@ -479,6 +491,8 @@ static void free_unclaimed_pages(int fd, bool block_signals)
         return;
     }
     pthread_mutex_lock(&fds_lock[fd]);
+    if(fd > max_fd_observed)
+        max_fd_observed = fd;
     pthread_mutex_unlock(&fds_iter_lock);
 
     if(fds[fd].fd == -1)
